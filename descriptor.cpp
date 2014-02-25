@@ -14,6 +14,8 @@ WITHWARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "descriptor.h"
 #include "treeitem.h"
 
+using namespace UEFI;
+
 QString regionTypeToQString(const UINT8 type)
 {
     switch (type)

@@ -14,6 +14,8 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "treeitem.h"
 #include "treemodel.h"
 
+using namespace UEFI;
+
 TreeModel::TreeModel(QObject *parent)
     : QAbstractItemModel(parent)
 {

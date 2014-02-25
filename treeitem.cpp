@@ -16,6 +16,8 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "ffs.h"
 #include "descriptor.h"
 
+using namespace UEFI;
+
 QString itemTypeToQString(const UINT8 type)
 {
     switch (type) {

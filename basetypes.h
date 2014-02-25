@@ -117,6 +117,10 @@ typedef uint16_t  CHAR16;
 #define SEARCH_MODE_BODY    2
 #define SEARCH_MODE_ALL     3
 
+#ifdef __cplusplus
+namespace UEFI {
+#endif
+
 // Actions
 enum ActionTypes {
     NoAction = 50,
@@ -165,6 +169,10 @@ enum RegionSubtypes {
     BiosRegion,
     PdrRegion
 };
+
+#ifdef __cplusplus
+} // namespace UEFI
+#endif
 
 // EFI GUID
 typedef struct {

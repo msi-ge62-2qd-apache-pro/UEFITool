@@ -24,6 +24,8 @@ WITHWARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "LZMA/LzmaCompress.h"
 #include "LZMA/LzmaDecompress.h"
 
+using namespace UEFI;
+
 FfsEngine::FfsEngine(QObject *parent)
 : QObject(parent)
 {
@@ -327,7 +329,7 @@ UINT8 FfsEngine::parseIntelImage(const QByteArray & intelImage, QModelIndex & in
     // VSCC table
 
     // Add descriptor tree item
-    model->addItem(Region, DescriptorRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), body, QByteArray(), index);
+    model->addItem(UEFI::Region, DescriptorRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), body, QByteArray(), index);
     // Sort regions in ascending order
     qSort(offsets);
 
@@ -382,7 +384,7 @@ UINT8 FfsEngine::parseGbeRegion(const QByteArray & gbe, QModelIndex & index, con
             .arg(version->minor);
 
     // Add tree item
-    index = model->addItem(Region, GbeRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), gbe, QByteArray(), parent, mode);
+    index = model->addItem(UEFI::Region, GbeRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), gbe, QByteArray(), parent, mode);
 
     return ERR_SUCCESS;
 }
@@ -412,7 +414,7 @@ UINT8 FfsEngine::parseMeRegion(const QByteArray & me, QModelIndex & index, const
     }
 
     // Add tree item
-    index = model->addItem(Region, MeRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), me, QByteArray(), parent, mode);
+    index = model->addItem(UEFI::Region, MeRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), me, QByteArray(), parent, mode);
 
     return ERR_SUCCESS;
 }
@@ -428,7 +430,7 @@ UINT8 FfsEngine::parsePdrRegion(const QByteArray & pdr, QModelIndex & index, con
             arg(pdr.size(), 8, 16, QChar('0'));
 
     // Add tree item
-    index = model->addItem(Region, PdrRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), pdr, QByteArray(), parent, mode);
+    index = model->addItem(UEFI::Region, PdrRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), pdr, QByteArray(), parent, mode);
 
     return ERR_SUCCESS;
 }
@@ -444,7 +446,7 @@ UINT8 FfsEngine::parseBiosRegion(const QByteArray & bios, QModelIndex & index, c
             arg(bios.size(), 8, 16, QChar('0'));
 
     // Add tree item
-    index = model->addItem(Region, BiosRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), bios, QByteArray(), parent, mode);
+    index = model->addItem(UEFI::Region, BiosRegion, COMPRESSION_ALGORITHM_NONE, name, "", info, QByteArray(), bios, QByteArray(), parent, mode);
 
     return parseBios(bios, index);
 }
@@ -1240,7 +1242,7 @@ UINT8 FfsEngine::create(const QModelIndex & index, const UINT8 type, const QByte
         parent = index;
 
     // Create item
-    if (type == Region) {
+    if (type == UEFI::Region) {
         UINT8 subtype = model->subtype(index);
         switch (subtype) {
         case BiosRegion:
@@ -1265,7 +1267,7 @@ UINT8 FfsEngine::create(const QModelIndex & index, const UINT8 type, const QByte
         // Set action
         model->setAction(fileIndex, action);
     }
-    else if (type == File) {
+    else if (type == UEFI::File) {
         if (model->type(parent) != Volume)
             return ERR_INVALID_FILE;
 
@@ -1326,7 +1328,7 @@ UINT8 FfsEngine::create(const QModelIndex & index, const UINT8 type, const QByte
         // Rebase all PEI-files that follow
         rebasePeiFiles(fileIndex);
     }
-    else if (type == Section) {
+    else if (type == UEFI::Section) {
         if (model->type(parent) != File && model->type(parent) != Section)
             return ERR_INVALID_SECTION;
 
@@ -1496,30 +1498,30 @@ UINT8 FfsEngine::replace(const QModelIndex & index, const QByteArray & object, c
     // Determine type of item to replace
     UINT32 headerSize;
     UINT8 result;
-    if (model->type(index) == Region) {
+    if (model->type(index) == UEFI::Region) {
         if (mode == REPLACE_MODE_AS_IS) 
-            result = create(index, Region, QByteArray(), object, CREATE_MODE_AFTER, Replace);
+            result = create(index, UEFI::Region, QByteArray(), object, CREATE_MODE_AFTER, Replace);
         else
             return ERR_NOT_IMPLEMENTED;
     }
-    else if (model->type(index) == File) {
+    else if (model->type(index) == UEFI::File) {
         if (mode == REPLACE_MODE_AS_IS) {
             headerSize = sizeof(EFI_FFS_FILE_HEADER);
-            result = create(index, File, object.left(headerSize), object.right(object.size() - headerSize), CREATE_MODE_AFTER,  Replace);
+            result = create(index, UEFI::File, object.left(headerSize), object.right(object.size() - headerSize), CREATE_MODE_AFTER,  Replace);
         }
         else if (mode == REPLACE_MODE_BODY)
-            result = create(index, File, model->header(index), object, CREATE_MODE_AFTER,  Replace);
+            result = create(index, UEFI::File, model->header(index), object, CREATE_MODE_AFTER,  Replace);
         else
             return ERR_NOT_IMPLEMENTED;
     }
-    else if (model->type(index) == Section) {
+    else if (model->type(index) == UEFI::Section) {
         if (mode == REPLACE_MODE_AS_IS) {
             EFI_COMMON_SECTION_HEADER* commonHeader = (EFI_COMMON_SECTION_HEADER*) object.constData();
             headerSize = sizeOfSectionHeaderOfType(commonHeader->Type);
-            result = create(index, Section, object.left(headerSize), object.right(object.size() - headerSize), CREATE_MODE_AFTER,  Replace);
+            result = create(index, UEFI::Section, object.left(headerSize), object.right(object.size() - headerSize), CREATE_MODE_AFTER,  Replace);
         }
         else if (mode == REPLACE_MODE_BODY) {
-            result = create(index, Section, model->header(index), object, CREATE_MODE_AFTER,  Replace, model->compression(index));
+            result = create(index, UEFI::Section, model->header(index), object, CREATE_MODE_AFTER,  Replace, model->compression(index));
         }
         else
             return ERR_NOT_IMPLEMENTED;
@@ -2607,7 +2609,7 @@ UINT8 FfsEngine::reconstruct(const QModelIndex &index, QByteArray& reconstructed
         }
         break;
 
-    case Capsule:
+    case UEFI::Capsule:
         if (model->subtype(index) == AptioCapsule)
             msg(tr("reconstruct: Aptio capsule checksum and signature can now become invalid"), index);
         // Capsules can be reconstructed like regions
@@ -2616,30 +2618,30 @@ UINT8 FfsEngine::reconstruct(const QModelIndex &index, QByteArray& reconstructed
             return result;
         break;
 
-    case Region:
+    case UEFI::Region:
         result = reconstructRegion(index, reconstructed);
         if (result)
             return result;
         break;
 
-    case Padding:
+    case UEFI::Padding:
         // No reconstruction needed
         reconstructed = model->header(index).append(model->body(index)).append(model->tail(index));
         return ERR_SUCCESS;
         break;
 
-    case Volume:
+    case UEFI::Volume:
         result = reconstructVolume(index, reconstructed);
         if (result)
             return result;
         break;
 
-    case File: //Must not be called that way
+    case UEFI::File: //Must not be called that way
         msg(tr("reconstruct: call of generic function is not supported for files").arg(model->type(index)), index);
         return ERR_GENERIC_CALL_NOT_SUPPORTED;
         break;
 
-    case Section:
+    case UEFI::Section:
         result = reconstructSection(index, 0, reconstructed);
         if (result)
             return result;
