@@ -134,6 +134,7 @@ void usageGeneral()
             "\t--ozmcreate\t\tPatches Original BIOS with Ozmosis\n"
             "\t--ffsconvert\t\tConverts kext-directories to FFS\n"
             "\t--dsdt2bios\t\tInjects (bigger) DSDT into AmiBoardInfo\n"
+            "\t--nvrampatch\t\tInject codeblock at end of .text of pe32 file\n"
             "\t--help, -h\t\tPrint this\n\n",qPrintable(appname));
 }
 

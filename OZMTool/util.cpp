@@ -696,6 +696,8 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
     EFI_IMAGE_BASE_RELOCATION *BASE_RELOCATION;
     RELOC_ENTRY *RELOCATION_ENTRIES;
 
+    const static char *TEXT_SECTION = ".text";
+    const static char *RDATA_SECTION = ".rdata";
     const static char *DATA_SECTION = ".data";
     const static char *EMPTY_SECTION = ".empty";
     const static char *RELOC_SECTION = ".reloc";
@@ -753,9 +755,35 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
             strcpy((char *)&Section[i].Name, EMPTY_SECTION);
 
         printf(" - Section: %s\n", Section[i].Name);
+        printf("____ORIGINAL START_____\n");
+        printf("VirtualAddress: %x\n",Section[i].VirtualAddress);
+        printf("SizeOfRawData: %x\n",Section[i].SizeOfRawData);
+        printf("PtrLinenumbers: %x\n",Section[i].PointerToLinenumbers);
+        printf("PtrRawData: %x\n",Section[i].PointerToRawData);
+        printf("PtrRelocations: %x\n",Section[i].PointerToRelocations);
+        printf("NumLinenumbers: %x\n",Section[i].NumberOfLinenumbers);
+        printf("NumRelocations: %x\n",Section[i].NumberOfRelocations);
+        printf("Misc.PhysAddress: %x\n",Section[i].Misc.PhysicalAddress);
+        printf("Misc.VirtualSize: %x\n",Section[i].Misc.VirtualSize);
+        printf("____ORIGINAL END  _____\n");
 
-        if(!strcmp((char *)&Section[i].Name, DATA_SECTION)) {
-            /* DSDT blob starts in .data section */
+        if(!strcmp((char *)&Section[i].Name, TEXT_SECTION)) {
+            printf("\tSizeOfRawData: %X --> %X\n",
+                   Section[i].SizeOfRawData,
+                   Section[i].SizeOfRawData += alignDiffCode);
+        }
+        else if(!strcmp((char *)&Section[i].Name, RDATA_SECTION)) {
+            printf("\tVirtualAddress: %X --> %X\n",
+                   Section[i].VirtualAddress,
+                   Section[i].VirtualAddress += alignDiffCode);
+            printf("\tPointerToRawData: %X --> %X\n",
+                   Section[i].PointerToRawData,
+                   Section[i].PointerToRawData += alignDiffCode);
+        }
+        else if(!strcmp((char *)&Section[i].Name, DATA_SECTION)) {
+            printf("\tVirtualAddress: %X --> %X\n",
+                   Section[i].VirtualAddress,
+                   Section[i].VirtualAddress += alignDiffCode);
             printf("\tPhysicalAddress: %X --> %X\n",
                    Section[i].Misc.PhysicalAddress,
                    Section[i].Misc.PhysicalAddress += alignDiffCode);
@@ -764,7 +792,7 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
                    Section[i].SizeOfRawData += alignDiffCode);
         }
         else if(!strcmp((char *)&Section[i].Name, EMPTY_SECTION)) {
-            /* .empty section is after .data -> needs patching */
+            /* .empty section is after .text -> needs patching */
             printf("\tVirtualAddress: %X --> %X\n",
                    Section[i].VirtualAddress,
                    Section[i].VirtualAddress += alignDiffCode);
@@ -773,7 +801,7 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
                    Section[i].PointerToRawData += alignDiffCode);
         }
         else if(!strcmp((char *)&Section[i].Name, RELOC_SECTION)) {
-            /* .reloc section is after .data -> needs patching */
+            /* .reloc section is after .text -> needs patching */
             printf("\tVirtualAddress: %X --> %X\n",
                    Section[i].VirtualAddress,
                    Section[i].VirtualAddress += alignDiffCode);
