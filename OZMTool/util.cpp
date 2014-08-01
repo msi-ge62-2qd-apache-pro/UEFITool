@@ -755,6 +755,7 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
             strcpy((char *)&Section[i].Name, EMPTY_SECTION);
 
         printf(" - Section: %s\n", Section[i].Name);
+#if 0
         printf("____ORIGINAL START_____\n");
         printf("VirtualAddress: %x\n",Section[i].VirtualAddress);
         printf("SizeOfRawData: %x\n",Section[i].SizeOfRawData);
@@ -766,11 +767,18 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
         printf("Misc.PhysAddress: %x\n",Section[i].Misc.PhysicalAddress);
         printf("Misc.VirtualSize: %x\n",Section[i].Misc.VirtualSize);
         printf("____ORIGINAL END  _____\n");
+#endif
 
         if(!strcmp((char *)&Section[i].Name, TEXT_SECTION)) {
             printf("\tSizeOfRawData: %X --> %X\n",
                    Section[i].SizeOfRawData,
                    Section[i].SizeOfRawData += alignDiffCode);
+            printf("\tVirtualSize: %X --> %X\n",
+                   Section[i].Misc.VirtualSize,
+                   Section[i].Misc.VirtualSize += alignDiffCode);
+//            printf("\tPhysAddress: %X --> %X\n",
+//                   Section[i].Misc.PhysicalAddress,
+//                   Section[i].Misc.PhysicalAddress += alignDiffCode);
         }
         else if(!strcmp((char *)&Section[i].Name, RDATA_SECTION)) {
             printf("\tVirtualAddress: %X --> %X\n",
@@ -784,9 +792,6 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
             printf("\tVirtualAddress: %X --> %X\n",
                    Section[i].VirtualAddress,
                    Section[i].VirtualAddress += alignDiffCode);
-            printf("\tPhysicalAddress: %X --> %X\n",
-                   Section[i].Misc.PhysicalAddress,
-                   Section[i].Misc.PhysicalAddress += alignDiffCode);
             printf("\tSizeOfRawData: %X --> %X\n",
                    Section[i].SizeOfRawData,
                    Section[i].SizeOfRawData += alignDiffCode);
@@ -852,6 +857,62 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
             }
         }
     }
+
+#if 0
+        char *blobbuf = blob.data();
+        printf(" * Patching addresses in code\n");
+        const static UINT32 MAX_INSTRUCTIONS = 1000;
+        _DInst decomposed[MAX_INSTRUCTIONS];
+        _DecodedInst disassembled[MAX_INSTRUCTIONS];
+        _DecodeResult res, res2;
+        _CodeInfo ci = {0};
+        ci.codeOffset = 0;
+        ci.codeLen = blob.size();
+        ci.code = (const unsigned char*)blobbuf;
+        ci.dt = Decode64Bits;
+
+        UINT32 decomposedInstructionsCount = 0;
+        UINT32 decodedInstructionsCount = 0;
+        UINT32 patchCount = 0;
+
+        /* Actual disassembly */
+        res = distorm_decode(ci.codeOffset,
+                             ci.code,
+                             ci.codeLen,
+                             Decode64Bits,
+                             disassembled,
+                             MAX_INSTRUCTIONS,
+                             &decomposedInstructionsCount);
+
+        /* Decompose for human-readable output */
+        res2 = distorm_decompose(&ci,
+                                 decomposed,
+                                 MAX_INSTRUCTIONS,
+                                 &decodedInstructionsCount);
+
+        if(decodedInstructionsCount != decomposedInstructionsCount) {
+            printf("ERROR: decompose / decode mismatch! Aborting!\n");
+            return ERR_ERROR;
+        }
+
+        for (int i = 0; i < decodedInstructionsCount; i++) {
+            if(decomposed[i].disp < 0xA000)
+                continue;
+
+            UINT32 patchOffset = (decomposed[i].addr-ci.codeOffset)+3;
+            UINT32 *patchValue = (UINT32*)&ci.code[patchOffset];
+
+            printf("offset: %08X: %s%s%s ",
+                   patchOffset,
+                   (char*)disassembled[i].mnemonic.p,
+                   disassembled[i].operands.length != 0 ? " " : "",
+                   (char*)disassembled[i].operands.p);
+            printf("[%x] --> [%x]\n",
+                   *patchValue,
+                   *patchValue += alignDiffCode);
+            patchCount++;
+        }
+#endif
 
     /* Copy data till DSDT */
     out.append((const char*)pe32, insertOffset);
