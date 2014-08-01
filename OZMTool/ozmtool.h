@@ -32,6 +32,7 @@ public:
     UINT8 OZMCreate(QString inputfile, QString outputfile, QString inputFFSdir, QString inputKextdir, QString inputDSDTfile, int aggressivity, bool compressdxe, bool compresskexts);
     UINT8 FFSConvert(QString inputdir, QString outputdir);
     UINT8 DSDT2Bios(QString inputfile, QString inputDSDTfile, QString outputfile);
+    UINT8 NvramPatch(QString inputfile, QString codeblobfile, QString outputfile);
 private:
 };
 

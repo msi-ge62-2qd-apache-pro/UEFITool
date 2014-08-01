@@ -22,6 +22,18 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 QString appname = "OZMTool";
 
+void usageNvramPatch()
+{
+    printf("nvrampatch command\n"
+            " usage:\n"
+            "\t%s --nvrampatch -i Runtime.pe32 -o patchedRuntime.pe32\n\n"
+            " parameters:\n" \
+            "\t-i, --input [file]\t\tInput file (Runtime.pe32)\n"
+            "\t-b, --blob [file]\t\tCodeBlob file\n"
+            "\t-o, --out [file]\t\tOutput file (patchedRuntime.pe32)\n"
+            "\t-h, --help\t\tPrint this\n\n",qPrintable(appname));
+}
+
 void usageDsdt2Bios()
 {
     printf("dsdt2bios command\n"
@@ -140,6 +152,7 @@ void usageAll()
     usageOzmCreate();
     usageFfsConvert();
     usageDsdt2Bios();
+    usageNvramPatch();
 }
 
 int main(int argc, char *argv[])
@@ -152,6 +165,7 @@ int main(int argc, char *argv[])
     bool ozmcreate = false;
     bool ffsconvert = false;
     bool dsdt2bios = false;
+    bool nvrampatch = false;
     bool compressdxe = false;
     bool compresskexts = false;
     QString inputpath = "";
@@ -160,6 +174,7 @@ int main(int argc, char *argv[])
     QString kextdir = "";
     QString dsdtfile = "";
     QString recent = "";
+    QString blob = "";
     int aggressivity = 0;
 
     QCoreApplication a(argc, argv);
@@ -241,6 +256,13 @@ int main(int argc, char *argv[])
 
         if (strcasecmp(argv[0], "--dsdt2bios") == 0) {
             dsdt2bios = true;
+            argc --;
+            argv ++;
+            continue;
+        }
+
+        if (strcasecmp(argv[0], "--nvrampatch") == 0) {
+            nvrampatch = true;
             argc --;
             argv ++;
             continue;
@@ -332,6 +354,18 @@ int main(int argc, char *argv[])
             continue;
         }
 
+        if ((strcasecmp(argv[0], "-b") == 0) || (strcasecmp(argv[0], "--blob") == 0)) {
+            if (argv[1] == NULL || argv[1][0] == '-') {
+                printf("Invalid option value\n"
+                       "Input file is missing for -r option\n");
+                goto fail;
+            }
+            blob = argv[1];
+            argc -= 2;
+            argv += 2;
+            continue;
+        }
+
         if ((strcasecmp(argv[0], "-a") == 0) || (strcasecmp(argv[0], "--aggressivity") == 0)) {
             if (argv[1] == NULL || argv[1][0] == '-') {
                 printf("Invalid option value\n"
@@ -358,7 +392,7 @@ fail:
         return ERR_GENERIC_CALL_NOT_SUPPORTED;
     }
 
-    int cmds = dsdtextract + dsdtinject + ozmextract + ozmupdate + ozmcreate + ffsconvert + dsdt2bios;
+    int cmds = dsdtextract + dsdtinject + ozmextract + ozmupdate + ozmcreate + ffsconvert + dsdt2bios + nvrampatch;
 
     versionInfo();
 
@@ -379,6 +413,8 @@ fail:
             usageFfsConvert();
         else if (dsdt2bios)
             usageDsdt2Bios();
+        else if (nvrampatch)
+            usageNvramPatch();
         else
             usageAll();
 
@@ -421,6 +457,11 @@ fail:
         return ERR_GENERIC_CALL_NOT_SUPPORTED;
     }
 
+    if(nvrampatch && blob.isEmpty()) {
+        printf("ERROR: No CodeBlob file supplied!\n");
+        return ERR_GENERIC_CALL_NOT_SUPPORTED;
+    }
+
     if (dsdtextract)
         result = w.DSDTExtract(inputpath, output);
     else if (dsdtinject)
@@ -435,7 +476,8 @@ fail:
         result = w.FFSConvert(inputpath, output);
     else if (dsdt2bios)
         result = w.DSDT2Bios(inputpath, dsdtfile, output);
-
+    else if (nvrampatch)
+        result = w.NvramPatch(inputpath, blob, output);
 
     if(result) {
         printf("! Program exited with errors !\n");

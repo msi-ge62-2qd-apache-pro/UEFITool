@@ -38,5 +38,6 @@ UINT8 convertKext(QString input, int kextIndex, QString basename, QByteArray & o
 UINT8 ffsCreate(QByteArray body, QString guid, QString sectionName, QByteArray & out);
 UINT8 extractDSDTfromAmiboardInfo(QByteArray amiboardbuf, QByteArray & out);
 UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray & out);
+UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out);
 
 #endif // UTIL_H

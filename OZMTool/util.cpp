@@ -676,3 +676,163 @@ UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray 
 
     return ERR_SUCCESS;
 }
+
+UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
+{
+    int i;
+
+    UINT32 baseOfCode, sizeOfCode, insertOffset;
+
+    UINT32 relocStart, relocSize;
+    int physEntries, logicalEntries;
+    UINT32 index;
+    UINT32 dataLeft;
+    UINT32 baseRelocAddr;
+
+    UINT32 sectionsStart, diffCode, alignDiffCode;
+    EFI_IMAGE_DOS_HEADER *HeaderDOS;
+    EFI_IMAGE_NT_HEADERS64 *HeaderNT;
+    EFI_IMAGE_SECTION_HEADER *Section;
+    EFI_IMAGE_BASE_RELOCATION *BASE_RELOCATION;
+    RELOC_ENTRY *RELOCATION_ENTRIES;
+
+    const static char *DATA_SECTION = ".data";
+    const static char *EMPTY_SECTION = ".empty";
+    const static char *RELOC_SECTION = ".reloc";
+
+    static unsigned char *pe32 = (unsigned char*)in.constData();
+
+    HeaderDOS = (EFI_IMAGE_DOS_HEADER *)pe32;
+
+    if (HeaderDOS->e_magic != EFI_IMAGE_DOS_SIGNATURE) {
+        printf("Error: Invalid file, not AmiBoardInfo. Aborting!\n");
+        return ERR_INVALID_FILE;
+    }
+
+    diffCode = blob.size();
+    alignDiffCode = ALIGN32(diffCode);
+
+    HeaderNT = (EFI_IMAGE_NT_HEADERS64 *)&pe32[HeaderDOS->e_lfanew];
+    sectionsStart = HeaderDOS->e_lfanew+sizeof(EFI_IMAGE_NT_HEADERS64);
+    Section = (EFI_IMAGE_SECTION_HEADER *)&pe32[sectionsStart];
+
+    relocStart = HeaderNT->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
+    relocSize = HeaderNT->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC].Size;
+
+    baseOfCode = HeaderNT->OptionalHeader.BaseOfCode;
+    sizeOfCode = HeaderNT->OptionalHeader.SizeOfCode;
+    insertOffset = baseOfCode + sizeOfCode;
+
+    printf(" * Patching header...\n");
+    printf("\tSizeOfInitialzedData: %X --> %X\n",
+           HeaderNT->OptionalHeader.SizeOfInitializedData,
+           HeaderNT->OptionalHeader.SizeOfInitializedData += alignDiffCode);
+    printf("\tSizeOfImage: %X --> %X\n",
+           HeaderNT->OptionalHeader.SizeOfImage,
+           HeaderNT->OptionalHeader.SizeOfImage += alignDiffCode);
+    printf("\tSizeOfCode: %X --> %X\n",
+           HeaderNT->OptionalHeader.SizeOfCode,
+           HeaderNT->OptionalHeader.SizeOfCode += diffCode);
+
+    printf(" * Patching directory entries...\n");
+    for ( i = 0; i < EFI_IMAGE_NUMBER_OF_DIRECTORY_ENTRIES ;i++) {
+
+        if(HeaderNT->OptionalHeader.DataDirectory[i].VirtualAddress == 0)
+            continue;
+
+        printf(" - DataDirectory %02X:\n", i);
+        printf("\tVirtualAddress: %X --> %X\n",
+               HeaderNT->OptionalHeader.DataDirectory[i].VirtualAddress,
+               HeaderNT->OptionalHeader.DataDirectory[i].VirtualAddress += alignDiffCode);
+    }
+
+    printf(" * Patching sections...\n");
+    for (i = 0 ; i < HeaderNT->FileHeader.NumberOfSections; i++) {
+
+        if (!strcmp((char *)&Section[i].Name, "")) // Give it a clear name
+            strcpy((char *)&Section[i].Name, EMPTY_SECTION);
+
+        printf(" - Section: %s\n", Section[i].Name);
+
+        if(!strcmp((char *)&Section[i].Name, DATA_SECTION)) {
+            /* DSDT blob starts in .data section */
+            printf("\tPhysicalAddress: %X --> %X\n",
+                   Section[i].Misc.PhysicalAddress,
+                   Section[i].Misc.PhysicalAddress += alignDiffCode);
+            printf("\tSizeOfRawData: %X --> %X\n",
+                   Section[i].SizeOfRawData,
+                   Section[i].SizeOfRawData += alignDiffCode);
+        }
+        else if(!strcmp((char *)&Section[i].Name, EMPTY_SECTION)) {
+            /* .empty section is after .data -> needs patching */
+            printf("\tVirtualAddress: %X --> %X\n",
+                   Section[i].VirtualAddress,
+                   Section[i].VirtualAddress += alignDiffCode);
+            printf("\tPointerToRawData: %X --> %X\n",
+                   Section[i].PointerToRawData,
+                   Section[i].PointerToRawData += alignDiffCode);
+        }
+        else if(!strcmp((char *)&Section[i].Name, RELOC_SECTION)) {
+            /* .reloc section is after .data -> needs patching */
+            printf("\tVirtualAddress: %X --> %X\n",
+                   Section[i].VirtualAddress,
+                   Section[i].VirtualAddress += alignDiffCode);
+            printf("\tPointerToRawData: %X --> %X\n",
+                   Section[i].PointerToRawData,
+                   Section[i].PointerToRawData += alignDiffCode);
+        }
+        else
+            printf("\tNothing to do here...\n");
+    }
+
+    if(relocStart > 0) {
+        printf(" * Patching actual relocations...\n");
+        index = 0;
+        dataLeft = relocSize;
+        baseRelocAddr = relocStart;
+        while(dataLeft > 0) {
+            BASE_RELOCATION = (EFI_IMAGE_BASE_RELOCATION*) &pe32[baseRelocAddr];
+            physEntries = (BASE_RELOCATION->SizeOfBlock - EFI_IMAGE_SIZEOF_BASE_RELOCATION) / EFI_IMAGE_SIZEOF_RELOC_ENTRY;
+            logicalEntries = physEntries - 1; // physEntries needed to calc next Base Relocation Table offset
+            RELOCATION_ENTRIES = (RELOC_ENTRY*) &pe32[baseRelocAddr+EFI_IMAGE_SIZEOF_BASE_RELOCATION];
+
+            baseRelocAddr += EFI_IMAGE_SIZEOF_BASE_RELOCATION + (physEntries * EFI_IMAGE_SIZEOF_RELOC_ENTRY);
+            dataLeft -= (physEntries * EFI_IMAGE_SIZEOF_RELOC_ENTRY) + EFI_IMAGE_SIZEOF_BASE_RELOCATION;
+
+
+            printf(" - Relocation Table %X:\n", index);
+            index++;
+
+            if(BASE_RELOCATION->VirtualAddress < (UINT32)insertOffset) {
+                printf("\tNothing to do here - VirtualAddress < DSDTOffset (%X < %X)\n",
+                                BASE_RELOCATION->VirtualAddress, insertOffset);
+                continue;
+            }
+
+            //Testing first relocation entry should be good..
+            UINT32 shiftBy = ((UINT32)RELOCATION_ENTRIES[0].offset + alignDiffCode) & 0xF000;
+
+            printf(" - VirtualAddress: %X --> %X\n",
+                    BASE_RELOCATION->VirtualAddress,
+                    BASE_RELOCATION->VirtualAddress += shiftBy);
+
+            for(int j=0; j<logicalEntries; j++) {
+                printf(" - Relocation: %X\n", j);
+                printf("\tOffset: %X --> %X\n",
+                       RELOCATION_ENTRIES[j].offset,
+                       RELOCATION_ENTRIES[j].offset += alignDiffCode);
+            }
+        }
+    }
+
+    /* Copy data till DSDT */
+    out.append((const char*)pe32, insertOffset);
+    // Copy new DSDT
+    out.append(blob);
+    // Pad the file
+    out.append(QByteArray((alignDiffCode-diffCode), '\x00'));
+    // Copy the rest
+    out.append(in.mid(insertOffset));
+
+    return ERR_SUCCESS;
+}
