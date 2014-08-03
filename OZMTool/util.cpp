@@ -604,7 +604,7 @@ UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray 
 
     if (needsCodePatching) {
         printf(" * Patching addresses in code\n");
-        const static UINT32 MAX_INSTRUCTIONS = 1000;
+        const static UINT32 MAX_INSTRUCTIONS = 5000;
         _DInst decomposed[MAX_INSTRUCTIONS];
         _DecodedInst disassembled[MAX_INSTRUCTIONS];
         _DecodeResult res, res2;
@@ -638,7 +638,7 @@ UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray 
             return ERR_ERROR;
         }
 
-        for (int i = 0; i < decodedInstructionsCount; i++) {
+        for (UINT32 i = 0; i < decodedInstructionsCount; i++) {
 
             if((decomposed[i].disp < (UINT64)offset)||decomposed[i].disp > (MAX_DSDT & 0xFF000))
                 continue;
@@ -688,6 +688,10 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
     UINT32 index;
     UINT32 dataLeft;
     UINT32 baseRelocAddr;
+	UINT64 imageBase;
+
+	UINT32 rdataStart, rdataSize;
+	UINT32 dataStart, dataSize;
 
     UINT32 sectionsStart, diffCode, alignDiffCode;
     EFI_IMAGE_DOS_HEADER *HeaderDOS;
@@ -723,18 +727,28 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
 
     baseOfCode = HeaderNT->OptionalHeader.BaseOfCode;
     sizeOfCode = HeaderNT->OptionalHeader.SizeOfCode;
+	imageBase = HeaderNT->OptionalHeader.ImageBase;
     insertOffset = baseOfCode + sizeOfCode;
 
+    printf(" * Header...\n");
+    printf("\tBaseOfCode: %X\n",
+           HeaderNT->OptionalHeader.BaseOfCode);
+
+    printf("\tImageBase: %016llx\n",
+           HeaderNT->OptionalHeader.ImageBase);
+
+    printf("\tRelocStart: %X\n",
+           relocStart);
+    printf("\tRelocSize: %X\n",
+           relocSize);
+
     printf(" * Patching header...\n");
-    printf("\tSizeOfInitialzedData: %X --> %X\n",
-           HeaderNT->OptionalHeader.SizeOfInitializedData,
-           HeaderNT->OptionalHeader.SizeOfInitializedData += alignDiffCode);
     printf("\tSizeOfImage: %X --> %X\n",
            HeaderNT->OptionalHeader.SizeOfImage,
            HeaderNT->OptionalHeader.SizeOfImage += alignDiffCode);
     printf("\tSizeOfCode: %X --> %X\n",
            HeaderNT->OptionalHeader.SizeOfCode,
-           HeaderNT->OptionalHeader.SizeOfCode += diffCode);
+           HeaderNT->OptionalHeader.SizeOfCode += alignDiffCode);
 
     printf(" * Patching directory entries...\n");
     for ( i = 0; i < EFI_IMAGE_NUMBER_OF_DIRECTORY_ENTRIES ;i++) {
@@ -755,7 +769,6 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
             strcpy((char *)&Section[i].Name, EMPTY_SECTION);
 
         printf(" - Section: %s\n", Section[i].Name);
-#if 0
         printf("____ORIGINAL START_____\n");
         printf("VirtualAddress: %x\n",Section[i].VirtualAddress);
         printf("SizeOfRawData: %x\n",Section[i].SizeOfRawData);
@@ -767,7 +780,7 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
         printf("Misc.PhysAddress: %x\n",Section[i].Misc.PhysicalAddress);
         printf("Misc.VirtualSize: %x\n",Section[i].Misc.VirtualSize);
         printf("____ORIGINAL END  _____\n");
-#endif
+
 
         if(!strcmp((char *)&Section[i].Name, TEXT_SECTION)) {
             printf("\tSizeOfRawData: %X --> %X\n",
@@ -776,11 +789,10 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
             printf("\tVirtualSize: %X --> %X\n",
                    Section[i].Misc.VirtualSize,
                    Section[i].Misc.VirtualSize += alignDiffCode);
-//            printf("\tPhysAddress: %X --> %X\n",
-//                   Section[i].Misc.PhysicalAddress,
-//                   Section[i].Misc.PhysicalAddress += alignDiffCode);
         }
         else if(!strcmp((char *)&Section[i].Name, RDATA_SECTION)) {
+			rdataStart = Section[i].PointerToRawData;
+			rdataSize = Section[i].SizeOfRawData;
             printf("\tVirtualAddress: %X --> %X\n",
                    Section[i].VirtualAddress,
                    Section[i].VirtualAddress += alignDiffCode);
@@ -789,12 +801,14 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
                    Section[i].PointerToRawData += alignDiffCode);
         }
         else if(!strcmp((char *)&Section[i].Name, DATA_SECTION)) {
+			dataStart = Section[i].PointerToRawData;
+			dataSize = Section[i].SizeOfRawData;
             printf("\tVirtualAddress: %X --> %X\n",
                    Section[i].VirtualAddress,
                    Section[i].VirtualAddress += alignDiffCode);
-            printf("\tSizeOfRawData: %X --> %X\n",
-                   Section[i].SizeOfRawData,
-                   Section[i].SizeOfRawData += alignDiffCode);
+            printf("\tPointerToRawData: %X --> %X\n",
+                   Section[i].PointerToRawData,
+                   Section[i].PointerToRawData += alignDiffCode);
         }
         else if(!strcmp((char *)&Section[i].Name, EMPTY_SECTION)) {
             /* .empty section is after .text -> needs patching */
@@ -816,6 +830,18 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
         }
         else
             printf("\tNothing to do here...\n");
+
+        printf("____FIXED START_____\n");
+        printf("VirtualAddress: %x\n",Section[i].VirtualAddress);
+        printf("SizeOfRawData: %x\n",Section[i].SizeOfRawData);
+        printf("PtrLinenumbers: %x\n",Section[i].PointerToLinenumbers);
+        printf("PtrRawData: %x\n",Section[i].PointerToRawData);
+        printf("PtrRelocations: %x\n",Section[i].PointerToRelocations);
+        printf("NumLinenumbers: %x\n",Section[i].NumberOfLinenumbers);
+        printf("NumRelocations: %x\n",Section[i].NumberOfRelocations);
+        printf("Misc.PhysAddress: %x\n",Section[i].Misc.PhysicalAddress);
+        printf("Misc.VirtualSize: %x\n",Section[i].Misc.VirtualSize);
+        printf("____FIXED END  _____\n");
     }
 
     if(relocStart > 0) {
@@ -858,17 +884,16 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
         }
     }
 
-#if 0
-        char *blobbuf = blob.data();
+	{
         printf(" * Patching addresses in code\n");
-        const static UINT32 MAX_INSTRUCTIONS = 1000;
+        const static UINT32 MAX_INSTRUCTIONS = 35000;
         _DInst decomposed[MAX_INSTRUCTIONS];
         _DecodedInst disassembled[MAX_INSTRUCTIONS];
         _DecodeResult res, res2;
         _CodeInfo ci = {0};
-        ci.codeOffset = 0;
-        ci.codeLen = blob.size();
-        ci.code = (const unsigned char*)blobbuf;
+        ci.codeOffset = HeaderNT->OptionalHeader.BaseOfCode;
+        ci.codeLen = HeaderNT->OptionalHeader.SizeOfCode;
+        ci.code = (const unsigned char*)&pe32[ci.codeOffset];
         ci.dt = Decode64Bits;
 
         UINT32 decomposedInstructionsCount = 0;
@@ -895,31 +920,107 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
             return ERR_ERROR;
         }
 
-        for (int i = 0; i < decodedInstructionsCount; i++) {
-            if(decomposed[i].disp < 0xA000)
+        for (UINT32 i = 0; i < decodedInstructionsCount; i++) {
+			UINT32 instructionAddr = decomposed[i].addr - ci.codeOffset;
+			UINT8 instructionSize = decomposed[i].size;
+			UINT32 nextInstructionAddr = instructionAddr + instructionSize;
+			UINT64 realInstructionAddr = instructionAddr + imageBase + baseOfCode;
+
+			if ((decomposed[i].flags & FLAG_RIP_RELATIVE) == 0x0)
+				continue;
+
+            if (decomposed[i].dispSize == 0x0 || 
+				decomposed[i].disp < (sizeOfCode - nextInstructionAddr))
                 continue;
 
-            UINT32 patchOffset = (decomposed[i].addr-ci.codeOffset)+3;
-            UINT32 *patchValue = (UINT32*)&ci.code[patchOffset];
+			// Negative reference
+			if (decomposed[i].disp & (0x80 << (decomposed[i].dispSize - 8)))
+				continue;
 
-            printf("offset: %08X: %s%s%s ",
-                   patchOffset,
-                   (char*)disassembled[i].mnemonic.p,
-                   disassembled[i].operands.length != 0 ? " " : "",
-                   (char*)disassembled[i].operands.p);
-            printf("[%x] --> [%x]\n",
-                   *patchValue,
-                   *patchValue += alignDiffCode);
+			UINT8 immSize = 0;
+			for (int j = 3; j >= 0; j--)
+				if (decomposed[i].ops[j].type == O_IMM ||
+					decomposed[i].ops[j].type == O_IMM1 ||
+					decomposed[i].ops[j].type == O_IMM2)
+					immSize = decomposed[i].ops[j].size >> 3;
+
+			UINT8 dispSize = decomposed[i].dispSize >> 3;
+			UINT32 dispOffset = nextInstructionAddr - immSize - dispSize;
+
+           	printf("instruction: size %08X: offset: %016llx displacement: %016llx: dispSize: %02x: %s%s%s",
+					decomposed[i].size,
+					realInstructionAddr,
+					decomposed[i].disp,
+					decomposed[i].dispSize,
+					(char*)disassembled[i].mnemonic.p,
+					disassembled[i].operands.length != 0 ? " " : "",
+					(char*)disassembled[i].operands.p);
+
+			if (dispSize == 8)
+			{
+				UINT64 *patchValue = (UINT64*)&ci.code[dispOffset];
+            	printf("[%016llx] --> [%016llx]\n",
+					*patchValue,
+					*patchValue += alignDiffCode);
+			} 
+			else if (dispSize == 4)
+			{
+				UINT32 *patchValue = (UINT32*)&ci.code[dispOffset];
+            	printf("[%08x] --> [%08x]\n",
+					*patchValue,
+					*patchValue += alignDiffCode);
+			}
+			else if (dispSize == 2)
+			{
+				UINT16 *patchValue = (UINT16*)&ci.code[dispOffset];
+            	printf("[%04x] --> [%04x]\n",
+					*patchValue,
+					*patchValue += alignDiffCode);
+			}
+			else if (dispSize == 1)
+			{
+				UINT8 *patchValue = (UINT8*)&ci.code[dispOffset];
+            	printf("[%02x] --> [%02x]\n",
+					*patchValue,
+					*patchValue += alignDiffCode);
+			}
+
             patchCount++;
         }
-#endif
+	}
+
+	// Fix up fixed address references in .data segment
+	{
+		UINT64 injectionPointStart = imageBase + baseOfCode + sizeOfCode;
+		UINT64 injectionPointEnd = imageBase + baseOfCode + sizeOfCode + alignDiffCode;
+		UINT64 dataSectionsEnd = imageBase + relocStart;
+
+		unsigned char *code = (unsigned char*)&pe32[dataStart];
+
+		printf("%x: [%016llx] --> [%016llx] --> [%016llx]\n",
+				dataStart,
+				injectionPointStart,
+				injectionPointEnd,
+				dataSectionsEnd);
+		for (UINT32 i = 0; i < dataSize; i+=8)
+		{
+			UINT64 realInstructionAddr = imageBase + dataStart + (UINT64) i;
+	    	UINT64 *lp = (UINT64*)&code[i];
+			if (*lp > injectionPointStart && *lp < dataSectionsEnd)
+				printf("%x [%016llx]: [%016llx] --> [%016llx]\n",
+					dataStart + i,
+					realInstructionAddr,
+					*lp,
+					*lp += alignDiffCode);
+		}
+	}
 
     /* Copy data till DSDT */
     out.append((const char*)pe32, insertOffset);
     // Copy new DSDT
     out.append(blob);
     // Pad the file
-    out.append(QByteArray((alignDiffCode-diffCode), '\x00'));
+    out.append(QByteArray((alignDiffCode-diffCode), '\xcc'));
     // Copy the rest
     out.append(in.mid(insertOffset));
 
