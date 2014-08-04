@@ -30,10 +30,10 @@ echo "#endif // VERSION_H" >> ${VERSION_HEADER}
 
 # Lets begin
 rm -rf ${BUILD_DIR}
-mkdir ${BUILD_DIR}
+mkdir -p ${BUILD_DIR}
 cd ${BUILD_DIR}
 echo "Building..."
-${QMAKE} -config ${CONFIG_OPTION} ${BASE_DIR}
+${QMAKE} -spec macx-g++ -config ${CONFIG_OPTION} ${BASE_DIR}
 ${MAKE}
 echo "Copying files..."
 mkdir ${RELEASE_DIR}
