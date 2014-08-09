@@ -920,23 +920,15 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
             return ERR_ERROR;
         }
 
+		UINT8 dirtyRegs = 0xff;
         for (UINT32 i = 0; i < decodedInstructionsCount; i++) {
 			UINT32 instructionAddr = decomposed[i].addr - ci.codeOffset;
 			UINT8 instructionSize = decomposed[i].size;
 			UINT32 nextInstructionAddr = instructionAddr + instructionSize;
 			UINT64 realInstructionAddr = instructionAddr + imageBase + baseOfCode;
 
-			if ((decomposed[i].flags & FLAG_RIP_RELATIVE) == 0x0)
-				continue;
-
-            if (decomposed[i].dispSize == 0x0 || 
-				decomposed[i].disp < (sizeOfCode - nextInstructionAddr))
-                continue;
-
-			// Negative reference
-			if (decomposed[i].disp & (0x80 << (decomposed[i].dispSize - 8)))
-				continue;
-
+			// Calculate the size of the immediate parameter if any -
+			// needed to find the address of the displacement
 			UINT8 immSize = 0;
 			for (int j = 3; j >= 0; j--)
 				if (decomposed[i].ops[j].type == O_IMM ||
@@ -944,48 +936,128 @@ UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
 					decomposed[i].ops[j].type == O_IMM2)
 					immSize = decomposed[i].ops[j].size >> 3;
 
-			UINT8 dispSize = decomposed[i].dispSize >> 3;
-			UINT32 dispOffset = nextInstructionAddr - immSize - dispSize;
+			// Fix up any tables that use ImageBase as a reference
+			// e.g. table = RIP - (offset to imageBase) + tableAddress;
+			if (decomposed[i].flags & FLAG_RIP_RELATIVE &&
+				((nextInstructionAddr + baseOfCode) + decomposed[i].disp == 0x0))
+			{
+				dirtyRegs = decomposed[i].ops[0].index;
+				continue;
+			} 
 
-           	printf("instruction: size %08X: offset: %016llx displacement: %016llx: dispSize: %02x: %s%s%s",
+			if (dirtyRegs != 0xff && 
+				decomposed[i].ops[1].type == O_MEM && 
+				decomposed[i].ops[1].index == dirtyRegs) {
+				UINT8 dispSize = decomposed[i].dispSize >> 3;
+				UINT32 dispOffset = nextInstructionAddr - immSize - dispSize;
+				printf("instruction: size %08X: offset: %016llx disp: %016llx: dispSize: %02x: imm: %016llx: imageBase: %016llx: %s%s%s\n",
 					decomposed[i].size,
 					realInstructionAddr,
 					decomposed[i].disp,
 					decomposed[i].dispSize,
+					decomposed[i].imm.addr,
+					0x0,
 					(char*)disassembled[i].mnemonic.p,
 					disassembled[i].operands.length != 0 ? " " : "",
 					(char*)disassembled[i].operands.p);
+//				for (int j = 3; j >= 0; j--)
+//				{
+//		       		printf("operand: type: %02X: index: %02x size: %02x\n",
+//						decomposed[i].ops[j].type,
+//						decomposed[i].ops[j].index,
+//						decomposed[i].ops[j].size);
+//				}
 
-			if (dispSize == 8)
-			{
-				UINT64 *patchValue = (UINT64*)&ci.code[dispOffset];
-            	printf("[%016llx] --> [%016llx]\n",
-					*patchValue,
-					*patchValue += alignDiffCode);
+				if (dispSize == 8)
+				{
+					UINT64 *patchValue = (UINT64*)&ci.code[dispOffset];
+					printf("[%016llx] --> [%016llx]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				} 
+				else if (dispSize == 4)
+				{
+					UINT32 *patchValue = (UINT32*)&ci.code[dispOffset];
+					printf("[%08x] --> [%08x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				else if (dispSize == 2)
+				{
+					UINT16 *patchValue = (UINT16*)&ci.code[dispOffset];
+					printf("[%04x] --> [%04x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				else if (dispSize == 1)
+				{
+					UINT8 *patchValue = (UINT8*)&ci.code[dispOffset];
+					printf("[%02x] --> [%02x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				patchCount++;
 			} 
-			else if (dispSize == 4)
-			{
-				UINT32 *patchValue = (UINT32*)&ci.code[dispOffset];
-            	printf("[%08x] --> [%08x]\n",
-					*patchValue,
-					*patchValue += alignDiffCode);
-			}
-			else if (dispSize == 2)
-			{
-				UINT16 *patchValue = (UINT16*)&ci.code[dispOffset];
-            	printf("[%04x] --> [%04x]\n",
-					*patchValue,
-					*patchValue += alignDiffCode);
-			}
-			else if (dispSize == 1)
-			{
-				UINT8 *patchValue = (UINT8*)&ci.code[dispOffset];
-            	printf("[%02x] --> [%02x]\n",
-					*patchValue,
-					*patchValue += alignDiffCode);
-			}
 
-            patchCount++;
+			if (decomposed[i].ops[0].type == O_REG && decomposed[i].ops[0].index == dirtyRegs)
+				dirtyRegs = 0xff;
+
+
+			if (decomposed[i].flags & FLAG_RIP_RELATIVE &&
+
+				// Displacement is not 0
+				decomposed[i].dispSize != 0x0 &&
+
+				// Negative reference - not handled for now
+				// if (decomposed[i].disp < 0) - this is supposed to work but doesn't
+				!(decomposed[i].disp & (0x80 << (decomposed[i].dispSize - 8))) &&
+
+				// Displacement lands in or after our injection point
+				decomposed[i].disp >= (sizeOfCode - nextInstructionAddr))
+			{
+				UINT8 dispSize = decomposed[i].dispSize >> 3;
+				UINT32 dispOffset = nextInstructionAddr - immSize - dispSize;
+	
+  	         	printf("instruction: size %08X: offset: %016llx disp: %016llx: dispSize: %02x: immSize %02x: %s%s%s",
+						decomposed[i].size,
+						realInstructionAddr,
+						decomposed[i].disp,
+						decomposed[i].dispSize,
+						immSize,
+						(char*)disassembled[i].mnemonic.p,
+						disassembled[i].operands.length != 0 ? " " : "",
+						(char*)disassembled[i].operands.p);
+	
+				if (dispSize == 8)
+				{
+					UINT64 *patchValue = (UINT64*)&ci.code[dispOffset];
+					printf("[%016llx] --> [%016llx]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				} 
+				else if (dispSize == 4)
+				{
+					UINT32 *patchValue = (UINT32*)&ci.code[dispOffset];
+					printf("[%08x] --> [%08x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				else if (dispSize == 2)
+				{
+					UINT16 *patchValue = (UINT16*)&ci.code[dispOffset];
+					printf("[%04x] --> [%04x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				else if (dispSize == 1)
+				{
+					UINT8 *patchValue = (UINT8*)&ci.code[dispOffset];
+					printf("[%02x] --> [%02x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				patchCount++;
+			}
         }
 	}
 
