@@ -14,18 +14,17 @@ WITHWARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define __FFS_H__
 
 #include <vector>
-
-#include <QByteArray>
-#include <QString>
 #include "basetypes.h"
+#include "cbstring.h"
+#include <QByteArray>
 
 // C++ functions
-// GUID to QString routine
-extern QString guidToQString(const EFI_GUID& guid);
-// File type to QString routine
-extern QString fileTypeToQString(const UINT8 type);
-// Section type to QString routine
-extern QString sectionTypeToQString(const UINT8 type);
+// GUID to string routine
+extern CBString guidToString(const EFI_GUID& guid);
+// File type to string routine
+extern CBString fileTypeToString(const UINT8 type);
+// Section type to string routine
+extern CBString sectionTypeToString(const UINT8 type);
 
 // Make sure we use right packing rules
 #pragma pack(push,1)
@@ -401,7 +400,7 @@ typedef struct _EFI_COMMON_SECTION_HEADER2 {
 #define EFI_SECTION_RAW                     0x19
 #define EFI_SECTION_PEI_DEPEX               0x1B
 #define EFI_SECTION_SMM_DEPEX               0x1C
-#define SCT_SECTION_POSTCODE                0xF0 // Specific to Phoenix SCT images
+#define PHOENIX_SECTION_POSTCODE            0xF0 // Specific to Phoenix images
 #define INSYDE_SECTION_POSTCODE             0x20 // Specific to Insyde images
 
 // Compression section

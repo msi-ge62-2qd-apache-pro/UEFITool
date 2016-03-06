@@ -10,7 +10,6 @@ THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
 WITHWARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 */
 
-#include <QObject>
 #include "ffs.h"
 
 // This is a workaround for the lack of static std::vector initializer before C++11
@@ -44,66 +43,68 @@ UINT32 uint24ToUint32(const UINT8* ffsSize)
     return *(UINT32*)ffsSize & 0x00FFFFFF;
 }
 
-QString guidToQString(const EFI_GUID & guid)
+CBString guidToString(const EFI_GUID & guid)
 {
-    return QString("%1-%2-%3-%4%5-%6%7%8%9%10%11")
-        .arg(*(const UINT32*)&guid.Data[0], 8, 16, QChar('0'))
-        .arg(*(const UINT16*)&guid.Data[4], 4, 16, QChar('0'))
-        .arg(*(const UINT16*)&guid.Data[6], 4, 16, QChar('0'))
-        .arg(guid.Data[8],  2, 16, QChar('0'))
-        .arg(guid.Data[9],  2, 16, QChar('0'))
-        .arg(guid.Data[10], 2, 16, QChar('0'))
-        .arg(guid.Data[11], 2, 16, QChar('0'))
-        .arg(guid.Data[12], 2, 16, QChar('0'))
-        .arg(guid.Data[13], 2, 16, QChar('0'))
-        .arg(guid.Data[14], 2, 16, QChar('0'))
-        .arg(guid.Data[15], 2, 16, QChar('0')).toUpper();
+    CBString guidString;
+    guidString.format("%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
+        *(const UINT32*)&guid.Data[0],
+        *(const UINT16*)&guid.Data[4],
+        *(const UINT16*)&guid.Data[6],
+        guid.Data[8],
+        guid.Data[9],
+        guid.Data[10],
+        guid.Data[11],
+        guid.Data[12],
+        guid.Data[13],
+        guid.Data[14],
+        guid.Data[15]);
+    return guidString;
 }
 
-QString fileTypeToQString(const UINT8 type)
+CBString fileTypeToString(const UINT8 type)
 {
     switch (type)
     {
-    case EFI_FV_FILETYPE_RAW:                   return QObject::tr("Raw");
-    case EFI_FV_FILETYPE_FREEFORM:              return QObject::tr("Freeform");
-    case EFI_FV_FILETYPE_SECURITY_CORE:         return QObject::tr("SEC core");
-    case EFI_FV_FILETYPE_PEI_CORE:              return QObject::tr("PEI core");
-    case EFI_FV_FILETYPE_DXE_CORE:              return QObject::tr("DXE core");
-    case EFI_FV_FILETYPE_PEIM:                  return QObject::tr("PEI module");
-    case EFI_FV_FILETYPE_DRIVER:                return QObject::tr("DXE driver");
-    case EFI_FV_FILETYPE_COMBINED_PEIM_DRIVER:  return QObject::tr("Combined PEI/DXE");
-    case EFI_FV_FILETYPE_APPLICATION:           return QObject::tr("Application");
-    case EFI_FV_FILETYPE_SMM:                   return QObject::tr("SMM module");
-    case EFI_FV_FILETYPE_FIRMWARE_VOLUME_IMAGE: return QObject::tr("Volume image");
-    case EFI_FV_FILETYPE_COMBINED_SMM_DXE:      return QObject::tr("Combined SMM/DXE");
-    case EFI_FV_FILETYPE_SMM_CORE:              return QObject::tr("SMM core");
-    case EFI_FV_FILETYPE_PAD:                   return QObject::tr("Pad");
-    default:                                    return QObject::tr("Unknown");
+    case EFI_FV_FILETYPE_RAW:                   return CBString("Raw");
+    case EFI_FV_FILETYPE_FREEFORM:              return CBString("Freeform");
+    case EFI_FV_FILETYPE_SECURITY_CORE:         return CBString("SEC core");
+    case EFI_FV_FILETYPE_PEI_CORE:              return CBString("PEI core");
+    case EFI_FV_FILETYPE_DXE_CORE:              return CBString("DXE core");
+    case EFI_FV_FILETYPE_PEIM:                  return CBString("PEI module");
+    case EFI_FV_FILETYPE_DRIVER:                return CBString("DXE driver");
+    case EFI_FV_FILETYPE_COMBINED_PEIM_DRIVER:  return CBString("Combined PEI/DXE");
+    case EFI_FV_FILETYPE_APPLICATION:           return CBString("Application");
+    case EFI_FV_FILETYPE_SMM:                   return CBString("SMM module");
+    case EFI_FV_FILETYPE_FIRMWARE_VOLUME_IMAGE: return CBString("Volume image");
+    case EFI_FV_FILETYPE_COMBINED_SMM_DXE:      return CBString("Combined SMM/DXE");
+    case EFI_FV_FILETYPE_SMM_CORE:              return CBString("SMM core");
+    case EFI_FV_FILETYPE_PAD:                   return CBString("Pad");
+    default:                                    return CBString("Unknown");
     };
 }
 
-QString sectionTypeToQString(const UINT8 type)
+CBString sectionTypeToString(const UINT8 type)
 {
     switch (type)
     {
-    case EFI_SECTION_COMPRESSION:               return QObject::tr("Compressed");
-    case EFI_SECTION_GUID_DEFINED:              return QObject::tr("GUID defined");
-    case EFI_SECTION_DISPOSABLE:                return QObject::tr("Disposable");
-    case EFI_SECTION_PE32:                      return QObject::tr("PE32 image");
-    case EFI_SECTION_PIC:                       return QObject::tr("PIC image");
-    case EFI_SECTION_TE:                        return QObject::tr("TE image");
-    case EFI_SECTION_DXE_DEPEX:                 return QObject::tr("DXE dependency");
-    case EFI_SECTION_VERSION:                   return QObject::tr("Version");
-    case EFI_SECTION_USER_INTERFACE:            return QObject::tr("UI");
-    case EFI_SECTION_COMPATIBILITY16:           return QObject::tr("16-bit image");
-    case EFI_SECTION_FIRMWARE_VOLUME_IMAGE:     return QObject::tr("Volume image");
-    case EFI_SECTION_FREEFORM_SUBTYPE_GUID:     return QObject::tr("Freeform subtype GUID");
-    case EFI_SECTION_RAW:                       return QObject::tr("Raw");
-    case EFI_SECTION_PEI_DEPEX:                 return QObject::tr("PEI dependency");
-    case EFI_SECTION_SMM_DEPEX:                 return QObject::tr("SMM dependency");
-    case INSYDE_SECTION_POSTCODE:               return QObject::tr("Insyde postcode");
-    case SCT_SECTION_POSTCODE:                  return QObject::tr("SCT postcode");
-    default:                                    return QObject::tr("Unknown");
+    case EFI_SECTION_COMPRESSION:               return CBString("Compressed");
+    case EFI_SECTION_GUID_DEFINED:              return CBString("GUID defined");
+    case EFI_SECTION_DISPOSABLE:                return CBString("Disposable");
+    case EFI_SECTION_PE32:                      return CBString("PE32 image");
+    case EFI_SECTION_PIC:                       return CBString("PIC image");
+    case EFI_SECTION_TE:                        return CBString("TE image");
+    case EFI_SECTION_DXE_DEPEX:                 return CBString("DXE dependency");
+    case EFI_SECTION_VERSION:                   return CBString("Version");
+    case EFI_SECTION_USER_INTERFACE:            return CBString("UI");
+    case EFI_SECTION_COMPATIBILITY16:           return CBString("16-bit image");
+    case EFI_SECTION_FIRMWARE_VOLUME_IMAGE:     return CBString("Volume image");
+    case EFI_SECTION_FREEFORM_SUBTYPE_GUID:     return CBString("Freeform subtype GUID");
+    case EFI_SECTION_RAW:                       return CBString("Raw");
+    case EFI_SECTION_PEI_DEPEX:                 return CBString("PEI dependency");
+    case EFI_SECTION_SMM_DEPEX:                 return CBString("SMM dependency");
+    case INSYDE_SECTION_POSTCODE:               return CBString("Insyde postcode");
+    case PHOENIX_SECTION_POSTCODE:              return CBString("Phoenix postcode");
+    default:                                    return CBString("Unknown");
     }
 }
 

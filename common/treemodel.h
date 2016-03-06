@@ -14,71 +14,115 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #ifndef __TREEMODEL_H__
 #define __TREEMODEL_H__
 
-#include <QAbstractItemModel>
-#include <QModelIndex>
-#include <QString>
-#include <QVariant>
-
 #include "basetypes.h"
+#include "cbstring.h"
 #include "types.h"
+
+#include <QByteArray>
 
 class TreeItem;
 
-class TreeModel : public QAbstractItemModel
+class ModelIndex
 {
-    Q_OBJECT
-
+    friend class TreeModel;
 public:
-    TreeModel(QObject *parent = 0);
+    inline ModelIndex() : r(-1), c(-1), i(0), m(0) {}
+    // compiler-generated copy/move ctors/assignment operators are fine!
+    inline int row() const { return r; }
+    inline int column() const { return c; }
+    inline uint64_t internalId() const { return i; }
+    inline void *internalPointer() const { return reinterpret_cast<void*>(i); }
+    inline ModelIndex parent() const;
+    //inline ModelIndex sibling(int row, int column) const { return m ? (r == row && c == column) ? *this : m->sibling(row, column, *this) : ModelIndex(); }
+    inline ModelIndex child(int row, int column) const;
+    inline CBString data(int role) const;
+    //inline Qt::ItemFlags flags() const;
+    inline const TreeModel *model() const { return m; }
+    inline bool isValid() const { return (r >= 0) && (c >= 0) && (m != 0); }
+    inline bool operator==(const ModelIndex &other) const { return (other.r == r) && (other.i == i) && (other.c == c) && (other.m == m); }
+    inline bool operator!=(const ModelIndex &other) const { return !(*this == other); }
+    inline bool operator<(const ModelIndex &other) const 
+    {
+        return  r <  other.r
+        || (r == other.r && (c <  other.c
+        || (c == other.c && (i <  other.i
+        || (i == other.i && m < other.m)))));
+    }
+private:
+    inline ModelIndex(int arow, int acolumn, void *ptr, const TreeModel *amodel)
+        : r(arow), c(acolumn), i(reinterpret_cast<uint64_t>(ptr)), m(amodel) {}
+    inline ModelIndex(int arow, int acolumn, uint64_t id, const TreeModel *amodel)
+        : r(arow), c(acolumn), i(id), m(amodel) {}
+    int r, c;
+    uint64_t i;
+    const TreeModel *m;
+};
+
+
+
+class TreeModel
+{
+public:
+    TreeModel();
     ~TreeModel();
 
-    QVariant data(const QModelIndex &index, int role) const;
-    Qt::ItemFlags flags(const QModelIndex &index) const;
-    QVariant headerData(int section, Qt::Orientation orientation,
-        int role = Qt::DisplayRole) const;
-    QModelIndex index(int row, int column,
-        const QModelIndex &parent = QModelIndex()) const;
-    QModelIndex parent(const QModelIndex &index) const;
-    int rowCount(const QModelIndex &parent = QModelIndex()) const;
-    int columnCount(const QModelIndex &parent = QModelIndex()) const;
+    CBString data(const ModelIndex &index, int role) const;
+    //Qt::ItemFlags flags(const ModelIndex &index) const;
+    CBString headerData(int section, int orientation,
+        int role = 0) const;
+    ModelIndex index(int row, int column,
+        const ModelIndex &parent = ModelIndex()) const;
+    ModelIndex parent(const ModelIndex &index) const;
+    int rowCount(const ModelIndex &parent = ModelIndex()) const;
+    int columnCount(const ModelIndex &parent = ModelIndex()) const;
+    bool hasIndex(int row, int column, const ModelIndex &parent = ModelIndex()) const {
+        if (row < 0 || column < 0)
+            return false;
+        return row < rowCount(parent) && column < columnCount(parent);
+    }
 
-    void setAction(const QModelIndex &index, const UINT8 action);
-    void setType(const QModelIndex &index, const UINT8 type);
-    void setSubtype(const QModelIndex &index, const UINT8 subtype);
-    void setName(const QModelIndex &index, const QString &name);
-    void setText(const QModelIndex &index, const QString &text);
-    void setInfo(const QModelIndex &index, const QString &info);
-    void addInfo(const QModelIndex &index, const QString &info, const bool append = TRUE);
-    void setParsingData(const QModelIndex &index, const QByteArray &data);
-    void setFixed(const QModelIndex &index, const bool fixed);
-    void setCompressed(const QModelIndex &index, const bool compressed);
-    
-    QString name(const QModelIndex &index) const;
-    QString text(const QModelIndex &index) const;
-    QString info(const QModelIndex &index) const;
-    UINT8 type(const QModelIndex &index) const;
-    UINT8 subtype(const QModelIndex &index) const;
-    QByteArray header(const QModelIndex &index) const;
-    bool hasEmptyHeader(const QModelIndex &index) const;
-    QByteArray body(const QModelIndex &index) const;
-    bool hasEmptyBody(const QModelIndex &index) const;
-    QByteArray parsingData(const QModelIndex &index) const;
-    bool hasEmptyParsingData(const QModelIndex &index) const;
-    UINT8 action(const QModelIndex &index) const;
-    bool fixed(const QModelIndex &index) const;
-    
-    bool compressed(const QModelIndex &index) const;
+    ModelIndex createIndex(int row, int column, void *data) const { return ModelIndex(row, column, data, this); }
 
-    QModelIndex addItem(const UINT8 type, const UINT8 subtype = 0,
-        const QString & name = QString(), const QString & text = QString(), const QString & info = QString(),
+    void setAction(const ModelIndex &index, const UINT8 action);
+    void setType(const ModelIndex &index, const UINT8 type);
+    void setSubtype(const ModelIndex &index, const UINT8 subtype);
+    void setName(const ModelIndex &index, const CBString &name);
+    void setText(const ModelIndex &index, const CBString &text);
+    void setInfo(const ModelIndex &index, const CBString &info);
+    void addInfo(const ModelIndex &index, const CBString &info, const bool append = TRUE);
+    void setParsingData(const ModelIndex &index, const QByteArray &data);
+    void setFixed(const ModelIndex &index, const bool fixed);
+    void setCompressed(const ModelIndex &index, const bool compressed);
+    
+    CBString name(const ModelIndex &index) const;
+    CBString text(const ModelIndex &index) const;
+    CBString info(const ModelIndex &index) const;
+    UINT8 type(const ModelIndex &index) const;
+    UINT8 subtype(const ModelIndex &index) const;
+    QByteArray header(const ModelIndex &index) const;
+    bool hasEmptyHeader(const ModelIndex &index) const;
+    QByteArray body(const ModelIndex &index) const;
+    bool hasEmptyBody(const ModelIndex &index) const;
+    QByteArray parsingData(const ModelIndex &index) const;
+    bool hasEmptyParsingData(const ModelIndex &index) const;
+    UINT8 action(const ModelIndex &index) const;
+    bool fixed(const ModelIndex &index) const;
+    bool compressed(const ModelIndex &index) const;
+
+    ModelIndex addItem(const UINT8 type, const UINT8 subtype = 0,
+        const CBString & name = CBString(), const CBString & text = CBString(), const CBString & info = CBString(),
         const QByteArray & header = QByteArray(), const QByteArray & body = QByteArray(), 
         const bool fixed = false, const QByteArray & parsingData = QByteArray(),
-        const QModelIndex & parent = QModelIndex(), const UINT8 mode = CREATE_MODE_APPEND);
+        const ModelIndex & parent = ModelIndex(), const UINT8 mode = CREATE_MODE_APPEND);
 
-    QModelIndex findParentOfType(const QModelIndex & index, UINT8 type) const;
+    ModelIndex findParentOfType(const ModelIndex & index, UINT8 type) const;
 
 private:
     TreeItem *rootItem;
 };
+
+inline ModelIndex ModelIndex::parent() const { return m ? m->parent(*this) : ModelIndex(); }
+inline ModelIndex ModelIndex::child(int row, int column) const { return m ? m->index(row, column, *this) : ModelIndex(); }
+inline CBString ModelIndex::data(int role) const { return m ? m->data(*this, role) : CBString(); }
 
 #endif

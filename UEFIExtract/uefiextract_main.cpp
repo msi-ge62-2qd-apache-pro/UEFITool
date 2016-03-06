@@ -51,20 +51,20 @@ int main(int argc, char *argv[])
         if (result)
             return result;
 
-        std::vector<std::pair<QString, QModelIndex> > messages = ffsParser.getMessages();
+        std::vector<std::pair<ModelIndex, CBString> > messages = ffsParser.getMessages();
         for (size_t i = 0; i < messages.size(); i++) {
-            std::cout << messages[i].first.toLatin1().constData() << std::endl;
+            std::cout << messages[i].second << std::endl;
         }
 
         FfsDumper ffsDumper(&model);
 
         if (a.arguments().length() == 2) {
-            return (ffsDumper.dump(model.index(0, 0), fileInfo.fileName().append(".dump")) != ERR_SUCCESS);
+            return (ffsDumper.dump(model.index(0, 0), fileInfo.fileName().append(".dump").toLocal8Bit().constData()) != ERR_SUCCESS);
         }
         else {
             UINT32 returned = 0;
             for (int i = 2; i < a.arguments().length(); i++) {
-                result = ffsDumper.dump(model.index(0, 0), fileInfo.fileName().append(".dump"), a.arguments().at(i));
+                result = ffsDumper.dump(model.index(0, 0), fileInfo.fileName().append(".dump").toLocal8Bit().constData(), a.arguments().at(i).toLocal8Bit().constData());
                 if (result)
                     returned |= (1 << (i - 1));
             }

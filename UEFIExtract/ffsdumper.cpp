@@ -11,7 +11,9 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 */
 
+#include <iostream>
 #include "ffsdumper.h"
+
 
 FfsDumper::FfsDumper(TreeModel* treeModel)
     : model(treeModel), dumped(false)
@@ -22,7 +24,7 @@ FfsDumper::~FfsDumper()
 {
 }
 
-STATUS FfsDumper::dump(const QModelIndex & root, const QString & path, const QString & guid)
+STATUS FfsDumper::dump(const ModelIndex & root, const CBString & path, const CBString & guid)
 {
     dumped = false;
     UINT8 result = recursiveDump(root, path, guid);
@@ -33,63 +35,31 @@ STATUS FfsDumper::dump(const QModelIndex & root, const QString & path, const QSt
     return ERR_SUCCESS;
 }
 
-STATUS FfsDumper::recursiveDump(const QModelIndex & index, const QString & path, const QString & guid)
+STATUS FfsDumper::recursiveDump(const ModelIndex & index, const CBString & path, const CBString & guid)
 {
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;
 
-    QDir dir;
-    if (guid.isEmpty() ||
-        guidToQString(*(const EFI_GUID*)model->header(index).constData()) == guid ||
-        guidToQString(*(const EFI_GUID*)model->header(model->findParentOfType(index, Types::File)).constData()) == guid) {
+    if (guid.length() == 0 ||
+        guidToString(*(const EFI_GUID*)model->header(index).constData()) == guid ||
+        guidToString(*(const EFI_GUID*)model->header(model->findParentOfType(index, Types::File)).constData()) == guid) {
 
-        if (dir.cd(path))
-            return ERR_DIR_ALREADY_EXIST;
-
-        if (!dir.mkpath(path))
-            return ERR_DIR_CREATE;
-
-        QFile file;
-        if (!model->header(index).isEmpty()) {
-            file.setFileName(QObject::tr("%1/header.bin").arg(path));
-            if (!file.open(QFile::WriteOnly))
-                return ERR_FILE_OPEN;
-
-            file.write(model->header(index));
-            file.close();
-        }
-
-        if (!model->body(index).isEmpty()) {
-            file.setFileName(QObject::tr("%1/body.bin").arg(path));
-            if (!file.open(QFile::WriteOnly))
-                return ERR_FILE_OPEN;
-
-            file.write(model->body(index));
-            file.close();
-        }
-
-        QString info = QObject::tr("Type: %1\nSubtype: %2\n%3%4")
-            .arg(itemTypeToQString(model->type(index)))
-            .arg(itemSubtypeToQString(model->type(index), model->subtype(index)))
-            .arg(model->text(index).isEmpty() ? QObject::tr("") : QObject::tr("Text: %1\n").arg(model->text(index)))
-            .arg(model->info(index));
-        file.setFileName(QObject::tr("%1/info.txt").arg(path));
-        if (!file.open(QFile::Text | QFile::WriteOnly))
-            return ERR_FILE_OPEN;
-
-        file.write(info.toLatin1());
-        file.close();
+        std::cout << path << std::endl;
+        std::cout << model->text(index) << std::endl;
+        std::cout << model->info(index) << std::endl;
+        std::cout << "--------------------------------------------" << std::endl;
         dumped = true;
     }
 
     UINT8 result;
     for (int i = 0; i < model->rowCount(index); i++) {
-        QModelIndex childIndex = index.child(i, 0);
+        ModelIndex childIndex = index.child(i, 0);
         bool useText = FALSE;
         if (model->type(childIndex) != Types::Volume)
-            useText = !model->text(childIndex).isEmpty();
+            useText = (model->text(childIndex).length() > 0);
 
-        QString childPath = QString("%1/%2 %3").arg(path).arg(i).arg(useText ? model->text(childIndex) : model->name(childIndex));
+        CBString childPath;
+        childPath.format("%s/%d %s", (const char *)path, i, useText ? (const char *)model->text(childIndex) : (const char *)model->name(childIndex));
         result = recursiveDump(childIndex, childPath, guid);
         if (result)
             return result;

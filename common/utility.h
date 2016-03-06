@@ -14,19 +14,20 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #ifndef __UTILITY_H__
 #define __UTILITY_H__
 
-#include <QString>
-#include <QModelIndex>
+#include <QByteArray>
 #include "basetypes.h"
 #include "parsingdata.h"
+#include "cbstring.h"
+#include "treemodel.h"
 
 // Returns either new parsing data instance or obtains it from index
-PARSING_DATA parsingDataFromQModelIndex(const QModelIndex & index);
+PARSING_DATA parsingDataFromQModelIndex(const ModelIndex & index);
 
 // Converts parsing data to byte array
 QByteArray parsingDataToQByteArray(const PARSING_DATA & pdata);
 
-// Converts error code to QString
-extern QString errorCodeToQString(UINT8 errorCode);
+// Converts error code to string
+extern CBString errorCodeToString(UINT8 errorCode);
 
 // Decompression routine
 extern STATUS decompress(const QByteArray & compressed, UINT8 & algorithm, QByteArray & decompressed, QByteArray & efiDecompressed);

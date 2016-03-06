@@ -129,30 +129,30 @@ typedef struct _FLASH_DESCRIPTOR_REGION_SECTION {
 // Master section
 typedef struct _FLASH_DESCRIPTOR_MASTER_SECTION {
     UINT16 BiosId;
-    UINT8 BiosRead;
-    UINT8 BiosWrite;
+    UINT8  BiosRead;
+    UINT8  BiosWrite;
     UINT16 MeId;
-    UINT8 MeRead;
-    UINT8 MeWrite;
+    UINT8  MeRead;
+    UINT8  MeWrite;
     UINT16 GbeId;
-    UINT8 GbeRead;
-    UINT8 GbeWrite;
+    UINT8  GbeRead;
+    UINT8  GbeWrite;
 } FLASH_DESCRIPTOR_MASTER_SECTION;
 
 // Master section v2 (Skylake+)
 typedef struct _FLASH_DESCRIPTOR_MASTER_SECTION_V2 {
     UINT32 : 8;
-    UINT32 BiosRead : 12;
+    UINT32 BiosRead  : 12;
     UINT32 BiosWrite : 12;
     UINT32 : 8;
-    UINT32 MeRead : 12;
+    UINT32 MeRead  : 12;
     UINT32 MeWrite : 12;
     UINT32 : 8;
-    UINT32 GbeRead : 12;
+    UINT32 GbeRead  : 12;
     UINT32 GbeWrite : 12;
     UINT32 : 32;
     UINT32 : 8;
-    UINT32 EcRead : 12;
+    UINT32 EcRead  : 12;
     UINT32 EcWrite : 12;
 } FLASH_DESCRIPTOR_MASTER_SECTION_V2;
 
@@ -176,11 +176,11 @@ typedef struct _FLASH_DESCRIPTOR_UPPER_MAP {
 
 // VSCC table entry structure
 typedef struct _VSCC_TABLE_ENTRY {
-    UINT8   VendorId;          // JEDEC VendorID byte
-    UINT8   DeviceId0;         // JEDEC DeviceID first byte
-    UINT8   DeviceId1;         // JEDEC DeviceID second byte
-    UINT8   ReservedZero;      // Reserved, must be zero
-    UINT32  VsccRegisterValue; // VSCC register value
+    UINT8  VendorId;          // JEDEC VendorID byte
+    UINT8  DeviceId0;         // JEDEC DeviceID first byte
+    UINT8  DeviceId1;         // JEDEC DeviceID second byte
+    UINT8  ReservedZero;      // Reserved, must be zero
+    UINT32 VsccRegisterValue; // VSCC register value
 } VSCC_TABLE_ENTRY;
 
 // Base address and size of OEM section

@@ -146,9 +146,4 @@ typedef struct _EFI_GUID {
 #include <assert.h>
 #define ASSERT(x) assert(x)
 
-//Hexarg macros
-#define hexarg(X) arg(QString("%1").arg((X),0,16).toUpper())
-#define hexarg2(X, Y) arg(QString("%1").arg((X),(Y),16,QChar('0')).toUpper())
-
-
 #endif

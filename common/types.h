@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define __TYPES_H__
 
 #include "basetypes.h"
+#include "cbstring.h"
 
 // Actions
 namespace Actions
@@ -85,11 +86,11 @@ namespace Subtypes {
     };
 };
 
-// *ToQString conversion routines
-extern QString actionTypeToQString(const UINT8 action);
-extern QString itemTypeToQString(const UINT8 type);
-extern QString itemSubtypeToQString(const UINT8 type, const UINT8 subtype);
-extern QString compressionTypeToQString(const UINT8 algorithm);
-extern QString regionTypeToQString(const UINT8 type);
+// *ToString conversion routines
+extern CBString actionTypeToString(const UINT8 action);
+extern CBString itemTypeToString(const UINT8 type);
+extern CBString itemSubtypeToString(const UINT8 type, const UINT8 subtype);
+extern CBString compressionTypeToString(const UINT8 algorithm);
+extern CBString regionTypeToString(const UINT8 type);
 
 #endif

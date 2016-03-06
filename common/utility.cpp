@@ -10,7 +10,6 @@ THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
 WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 */
-#include <QObject>
 #include "treemodel.h"
 #include "utility.h"
 #include "ffs.h"
@@ -20,7 +19,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "LZMA/LzmaDecompress.h"
 
 // Returns either new parsing data instance or obtains it from index
-PARSING_DATA parsingDataFromQModelIndex(const QModelIndex & index)
+PARSING_DATA parsingDataFromQModelIndex(const ModelIndex & index)
 {
     if (index.isValid()) {
         TreeModel* model = (TreeModel*)index.model();
@@ -44,57 +43,60 @@ QByteArray parsingDataToQByteArray(const PARSING_DATA & pdata)
 }
 
 // Returns text representation of error code
-QString errorCodeToQString(UINT8 errorCode)
+CBString errorCodeToString(UINT8 errorCode)
 {
     switch (errorCode) {
-    case ERR_SUCCESS:                         return QObject::tr("Success");
-    case ERR_NOT_IMPLEMENTED:                 return QObject::tr("Not implemented");
-    case ERR_INVALID_PARAMETER:               return QObject::tr("Function called with invalid parameter");
-    case ERR_BUFFER_TOO_SMALL:                return QObject::tr("Buffer too small");
-    case ERR_OUT_OF_RESOURCES:                return QObject::tr("Out of resources");
-    case ERR_OUT_OF_MEMORY:                   return QObject::tr("Out of memory");
-    case ERR_FILE_OPEN:                       return QObject::tr("File can't be opened");
-    case ERR_FILE_READ:                       return QObject::tr("File can't be read");
-    case ERR_FILE_WRITE:                      return QObject::tr("File can't be written");
-    case ERR_ITEM_NOT_FOUND:                  return QObject::tr("Item not found");
-    case ERR_UNKNOWN_ITEM_TYPE:               return QObject::tr("Unknown item type");
-    case ERR_INVALID_FLASH_DESCRIPTOR:        return QObject::tr("Invalid flash descriptor");
-    case ERR_INVALID_REGION:                  return QObject::tr("Invalid region");
-    case ERR_EMPTY_REGION:                    return QObject::tr("Empty region");
-    case ERR_BIOS_REGION_NOT_FOUND:           return QObject::tr("BIOS region not found");
-    case ERR_VOLUMES_NOT_FOUND:               return QObject::tr("UEFI volumes not found");
-    case ERR_INVALID_VOLUME:                  return QObject::tr("Invalid UEFI volume");
-    case ERR_VOLUME_REVISION_NOT_SUPPORTED:   return QObject::tr("Volume revision not supported");
-    //case ERR_VOLUME_GROW_FAILED:              return QObject::tr("Volume grow failed");
-    case ERR_UNKNOWN_FFS:                     return QObject::tr("Unknown file system");
-    case ERR_INVALID_FILE:                    return QObject::tr("Invalid file");
-    case ERR_INVALID_SECTION:                 return QObject::tr("Invalid section");
-    case ERR_UNKNOWN_SECTION:                 return QObject::tr("Unknown section");
-    case ERR_STANDARD_COMPRESSION_FAILED:     return QObject::tr("Standard compression failed");
-    case ERR_CUSTOMIZED_COMPRESSION_FAILED:   return QObject::tr("Customized compression failed");
-    case ERR_STANDARD_DECOMPRESSION_FAILED:   return QObject::tr("Standard decompression failed");
-    case ERR_CUSTOMIZED_DECOMPRESSION_FAILED: return QObject::tr("Customized compression failed");
-    case ERR_UNKNOWN_COMPRESSION_TYPE:        return QObject::tr("Unknown compression type");
-    case ERR_UNKNOWN_EXTRACT_MODE:            return QObject::tr("Unknown extract mode");
-    case ERR_UNKNOWN_REPLACE_MODE:            return QObject::tr("Unknown replace mode");
-    //case ERR_UNKNOWN_INSERT_MODE:             return QObject::tr("Unknown insert mode");
-    case ERR_UNKNOWN_IMAGE_TYPE:              return QObject::tr("Unknown executable image type");
-    case ERR_UNKNOWN_PE_OPTIONAL_HEADER_TYPE: return QObject::tr("Unknown PE optional header type");
-    case ERR_UNKNOWN_RELOCATION_TYPE:         return QObject::tr("Unknown relocation type");
-    //case ERR_GENERIC_CALL_NOT_SUPPORTED:      return QObject::tr("Generic call not supported");
-    //case ERR_VOLUME_BASE_NOT_FOUND:           return QObject::tr("Volume base address not found");
-    //case ERR_PEI_CORE_ENTRY_POINT_NOT_FOUND:  return QObject::tr("PEI core entry point not found");
-    case ERR_COMPLEX_BLOCK_MAP:               return QObject::tr("Block map structure too complex for correct analysis");
-    case ERR_DIR_ALREADY_EXIST:               return QObject::tr("Directory already exists");
-    case ERR_DIR_CREATE:                      return QObject::tr("Directory can't be created");
-    //case ERR_UNKNOWN_PATCH_TYPE:              return QObject::tr("Unknown patch type");
-    //case ERR_PATCH_OFFSET_OUT_OF_BOUNDS:      return QObject::tr("Patch offset out of bounds");
-    //case ERR_INVALID_SYMBOL:                  return QObject::tr("Invalid symbol");
-    //case ERR_NOTHING_TO_PATCH:                return QObject::tr("Nothing to patch");
-    case ERR_DEPEX_PARSE_FAILED:              return QObject::tr("Dependency expression parsing failed");
-    case ERR_TRUNCATED_IMAGE:                 return QObject::tr("Image is truncated");
-    case ERR_INVALID_CAPSULE:                 return QObject::tr("Invalid capsule");
-    default:                                  return QObject::tr("Unknown error %1").arg(errorCode);
+    case ERR_SUCCESS:                         return CBString("Success");
+    case ERR_NOT_IMPLEMENTED:                 return CBString("Not implemented");
+    case ERR_INVALID_PARAMETER:               return CBString("Function called with invalid parameter");
+    case ERR_BUFFER_TOO_SMALL:                return CBString("Buffer too small");
+    case ERR_OUT_OF_RESOURCES:                return CBString("Out of resources");
+    case ERR_OUT_OF_MEMORY:                   return CBString("Out of memory");
+    case ERR_FILE_OPEN:                       return CBString("File can't be opened");
+    case ERR_FILE_READ:                       return CBString("File can't be read");
+    case ERR_FILE_WRITE:                      return CBString("File can't be written");
+    case ERR_ITEM_NOT_FOUND:                  return CBString("Item not found");
+    case ERR_UNKNOWN_ITEM_TYPE:               return CBString("Unknown item type");
+    case ERR_INVALID_FLASH_DESCRIPTOR:        return CBString("Invalid flash descriptor");
+    case ERR_INVALID_REGION:                  return CBString("Invalid region");
+    case ERR_EMPTY_REGION:                    return CBString("Empty region");
+    case ERR_BIOS_REGION_NOT_FOUND:           return CBString("BIOS region not found");
+    case ERR_VOLUMES_NOT_FOUND:               return CBString("UEFI volumes not found");
+    case ERR_INVALID_VOLUME:                  return CBString("Invalid UEFI volume");
+    case ERR_VOLUME_REVISION_NOT_SUPPORTED:   return CBString("Volume revision not supported");
+    //case ERR_VOLUME_GROW_FAILED:              return CBString("Volume grow failed");
+    case ERR_UNKNOWN_FFS:                     return CBString("Unknown file system");
+    case ERR_INVALID_FILE:                    return CBString("Invalid file");
+    case ERR_INVALID_SECTION:                 return CBString("Invalid section");
+    case ERR_UNKNOWN_SECTION:                 return CBString("Unknown section");
+    case ERR_STANDARD_COMPRESSION_FAILED:     return CBString("Standard compression failed");
+    case ERR_CUSTOMIZED_COMPRESSION_FAILED:   return CBString("Customized compression failed");
+    case ERR_STANDARD_DECOMPRESSION_FAILED:   return CBString("Standard decompression failed");
+    case ERR_CUSTOMIZED_DECOMPRESSION_FAILED: return CBString("Customized compression failed");
+    case ERR_UNKNOWN_COMPRESSION_TYPE:        return CBString("Unknown compression type");
+    case ERR_UNKNOWN_EXTRACT_MODE:            return CBString("Unknown extract mode");
+    case ERR_UNKNOWN_REPLACE_MODE:            return CBString("Unknown replace mode");
+    //case ERR_UNKNOWN_INSERT_MODE:             return CBString("Unknown insert mode");
+    case ERR_UNKNOWN_IMAGE_TYPE:              return CBString("Unknown executable image type");
+    case ERR_UNKNOWN_PE_OPTIONAL_HEADER_TYPE: return CBString("Unknown PE optional header type");
+    case ERR_UNKNOWN_RELOCATION_TYPE:         return CBString("Unknown relocation type");
+    //case ERR_GENERIC_CALL_NOT_SUPPORTED:      return CBString("Generic call not supported");
+    //case ERR_VOLUME_BASE_NOT_FOUND:           return CBString("Volume base address not found");
+    //case ERR_PEI_CORE_ENTRY_POINT_NOT_FOUND:  return CBString("PEI core entry point not found");
+    case ERR_COMPLEX_BLOCK_MAP:               return CBString("Block map structure too complex for correct analysis");
+    case ERR_DIR_ALREADY_EXIST:               return CBString("Directory already exists");
+    case ERR_DIR_CREATE:                      return CBString("Directory can't be created");
+    //case ERR_UNKNOWN_PATCH_TYPE:              return CBString("Unknown patch type");
+    //case ERR_PATCH_OFFSET_OUT_OF_BOUNDS:      return CBString("Patch offset out of bounds");
+    //case ERR_INVALID_SYMBOL:                  return CBString("Invalid symbol");
+    //case ERR_NOTHING_TO_PATCH:                return CBString("Nothing to patch");
+    case ERR_DEPEX_PARSE_FAILED:              return CBString("Dependency expression parsing failed");
+    case ERR_TRUNCATED_IMAGE:                 return CBString("Image is truncated");
+    case ERR_INVALID_CAPSULE:                 return CBString("Invalid capsule");
+    default:
+        CBString unknown;
+        unknown.format("Unknown error: %d", errorCode);
+        return unknown;
     }
 }
 

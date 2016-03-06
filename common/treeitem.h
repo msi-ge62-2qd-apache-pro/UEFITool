@@ -14,39 +14,38 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #ifndef __TREEITEM_H__
 #define __TREEITEM_H__
 
+#include <list>
 #include <QByteArray>
-#include <QList>
-#include <QString>
-#include <QVariant>
 
 #include "basetypes.h"
+#include "cbstring.h"
 
 class TreeItem
 {
 public:
-    TreeItem(const UINT8 type, const UINT8 subtype = 0, const QString &name = QString(), const QString &text = QString(), const QString &info = QString(),
+    TreeItem(const UINT8 type, const UINT8 subtype = 0, const CBString &name = CBString(), const CBString &text = CBString(), const CBString &info = CBString(),
         const QByteArray & header = QByteArray(), const QByteArray & body = QByteArray(), 
         const BOOLEAN fixed = FALSE, const BOOLEAN compressed = FALSE, const QByteArray & parsingData = QByteArray(),
-        TreeItem *parent = 0);
-    ~TreeItem() { qDeleteAll(childItems); }
+        TreeItem *parent = 0);                                                 // Non-trivial implementation in CPP file
+    ~TreeItem();                                                               // Non-trivial implementation in CPP file
 
     // Operations with items
-    void appendChild(TreeItem *item) { childItems.append(item); }
-    void prependChild(TreeItem *item) { childItems.prepend(item); };
+    void appendChild(TreeItem *item) { childItems.push_back(item); }
+    void prependChild(TreeItem *item) { childItems.push_front(item); };
     UINT8 insertChildBefore(TreeItem *item, TreeItem *newItem);                // Non-trivial implementation in CPP file
     UINT8 insertChildAfter(TreeItem *item, TreeItem *newItem);                 // Non-trivial implementation in CPP file
 
     // Model support operations
-    TreeItem *child(int row) { return childItems.value(row, NULL); }
-    int childCount() const {return childItems.count(); }
+    TreeItem* child(int row) { return *std::next(childItems.begin(), row); }
+    int childCount() const {return childItems.size(); }
     int columnCount() const { return 5; }
-    QVariant data(int column) const;                                           // Non-trivial implementation in CPP file
+    CBString data(int column) const;                                           // Non-trivial implementation in CPP file
     int row() const;                                                           // Non-trivial implementation in CPP file
     TreeItem *parent() { return parentItem; }
 
     // Reading operations for item parameters
-    QString name() const  { return itemName; }
-    void setName(const QString &text) { itemName = text; }
+    CBString name() const  { return itemName; }
+    void setName(const CBString &text) { itemName = text; }
 
     UINT8 type() const  { return itemType; }
     void setType(const UINT8 type) { itemType = type; }
@@ -54,8 +53,8 @@ public:
     UINT8 subtype() const { return itemSubtype; }
     void setSubtype(const UINT8 subtype) { itemSubtype = subtype; }
 
-    QString text() const { return itemText; }
-    void setText(const QString &text) { itemText = text; }
+    CBString text() const { return itemText; }
+    void setText(const CBString &text) { itemText = text; }
 
     QByteArray header() const { return itemHeader; }
     bool hasEmptyHeader() const { return itemHeader.isEmpty(); }
@@ -67,9 +66,9 @@ public:
     bool hasEmptyParsingData() const { return itemParsingData.isEmpty(); }
     void setParsingData(const QByteArray & data) { itemParsingData = data; }
 
-    QString info() const { return itemInfo; }
-    void addInfo(const QString &info, const BOOLEAN append) { if (append) itemInfo.append(info); else itemInfo.prepend(info); }
-    void setInfo(const QString &info) { itemInfo = info; }
+    CBString info() const { return itemInfo; }
+    void addInfo(const CBString &info, const BOOLEAN append) { if (append) itemInfo += info; else itemInfo.insert(0, info); }
+    void setInfo(const CBString &info) { itemInfo = info; }
     
     UINT8 action() const {return itemAction; }
     void setAction(const UINT8 action) { itemAction = action; }
@@ -81,13 +80,13 @@ public:
     void setCompressed(const bool compressed) { itemCompressed = compressed; }
 
 private:
-    QList<TreeItem*> childItems;
+    std::list<TreeItem*> childItems;
     UINT8      itemAction;
     UINT8      itemType;
     UINT8      itemSubtype;
-    QString    itemName;
-    QString    itemText;
-    QString    itemInfo;
+    CBString   itemName;
+    CBString   itemText;
+    CBString   itemInfo;
     QByteArray itemHeader;
     QByteArray itemBody;
     QByteArray itemParsingData;
