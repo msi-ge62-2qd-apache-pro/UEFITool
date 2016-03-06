@@ -16,8 +16,8 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 TreeItem::TreeItem(const UINT8 type, const UINT8 subtype, 
     const CBString & name, const CBString & text, const CBString & info,
-    const QByteArray & header, const QByteArray & body, 
-    const BOOLEAN fixed, const BOOLEAN compressed, const QByteArray & parsingData,
+    const ByteArray & header, const ByteArray & body, 
+    const bool fixed, const bool compressed, const ByteArray & parsingData,
     TreeItem *parent) : 
     itemAction(Actions::NoAction),
     itemType(type),

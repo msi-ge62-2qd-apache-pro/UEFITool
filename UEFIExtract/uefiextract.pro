@@ -8,7 +8,7 @@ CONFIG  -= app_bundle
 
 SOURCES += \
  uefiextract_main.cpp \
- ffsdumper.cpp \
+ uefiextract.cpp \
  ../common/types.cpp \
  ../common/descriptor.cpp \
  ../common/ffs.cpp \
@@ -24,7 +24,7 @@ SOURCES += \
  ../bstrlib/bstrwrap.cpp
 
 HEADERS += \
- ffsdumper.h \
+ uefiextract.h \
  ../common/basetypes.h \
  ../common/descriptor.h \
  ../common/gbe.h \
@@ -38,7 +38,7 @@ HEADERS += \
  ../common/utility.h \
  ../common/LZMA/LzmaDecompress.h \
  ../common/Tiano/EfiTianoDecompress.h \
+ ../common/bytearray.h \
  ../common/cbstring.h \
  ../bstrlib/bstrlib.h \
- ../bstrlib/bstrwrap.cpp
  

@@ -15,7 +15,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define __TREEITEM_H__
 
 #include <list>
-#include <QByteArray>
+#include "bytearray.h"
 
 #include "basetypes.h"
 #include "cbstring.h"
@@ -24,8 +24,8 @@ class TreeItem
 {
 public:
     TreeItem(const UINT8 type, const UINT8 subtype = 0, const CBString &name = CBString(), const CBString &text = CBString(), const CBString &info = CBString(),
-        const QByteArray & header = QByteArray(), const QByteArray & body = QByteArray(), 
-        const BOOLEAN fixed = FALSE, const BOOLEAN compressed = FALSE, const QByteArray & parsingData = QByteArray(),
+        const ByteArray & header = ByteArray(), const ByteArray & body = ByteArray(), 
+        const bool fixed = FALSE, const bool compressed = FALSE, const ByteArray & parsingData = ByteArray(),
         TreeItem *parent = 0);                                                 // Non-trivial implementation in CPP file
     ~TreeItem();                                                               // Non-trivial implementation in CPP file
 
@@ -56,27 +56,27 @@ public:
     CBString text() const { return itemText; }
     void setText(const CBString &text) { itemText = text; }
 
-    QByteArray header() const { return itemHeader; }
+    ByteArray header() const { return itemHeader; }
     bool hasEmptyHeader() const { return itemHeader.isEmpty(); }
 
-    QByteArray body() const { return itemBody; };
+    ByteArray body() const { return itemBody; };
     bool hasEmptyBody() const { return itemBody.isEmpty(); }
 
-    QByteArray parsingData() const { return itemParsingData; }
+    ByteArray parsingData() const { return itemParsingData; }
     bool hasEmptyParsingData() const { return itemParsingData.isEmpty(); }
-    void setParsingData(const QByteArray & data) { itemParsingData = data; }
+    void setParsingData(const ByteArray & data) { itemParsingData = data; }
 
     CBString info() const { return itemInfo; }
-    void addInfo(const CBString &info, const BOOLEAN append) { if (append) itemInfo += info; else itemInfo.insert(0, info); }
+    void addInfo(const CBString &info, const bool append) { if (append) itemInfo += info; else itemInfo.insert(0, info); }
     void setInfo(const CBString &info) { itemInfo = info; }
     
     UINT8 action() const {return itemAction; }
     void setAction(const UINT8 action) { itemAction = action; }
 
-    BOOLEAN fixed() const { return itemFixed; }
+    bool fixed() const { return itemFixed; }
     void setFixed(const bool fixed) { itemFixed = fixed; }
 
-    BOOLEAN compressed() const { return itemCompressed; }
+    bool compressed() const { return itemCompressed; }
     void setCompressed(const bool compressed) { itemCompressed = compressed; }
 
 private:
@@ -87,9 +87,9 @@ private:
     CBString   itemName;
     CBString   itemText;
     CBString   itemInfo;
-    QByteArray itemHeader;
-    QByteArray itemBody;
-    QByteArray itemParsingData;
+    ByteArray itemHeader;
+    ByteArray itemBody;
+    ByteArray itemParsingData;
     bool       itemFixed;
     bool       itemCompressed;
     TreeItem*  parentItem;

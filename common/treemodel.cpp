@@ -37,12 +37,9 @@ CBString TreeModel::data(const ModelIndex &index, int role) const
     if (!index.isValid())
         return CBString();
 
-    if (role != Qt::DisplayRole && role != Qt::UserRole)
-        return CBString();
-
     TreeItem *item = static_cast<TreeItem*>(index.internalPointer());
 
-    if (role == Qt::DisplayRole)
+    if (role == 0)
         return item->data(index.column());
     else
         return item->info();
@@ -144,10 +141,10 @@ UINT8 TreeModel::subtype(const ModelIndex &index) const
     return item->subtype();
 }
 
-QByteArray TreeModel::header(const ModelIndex &index) const
+ByteArray TreeModel::header(const ModelIndex &index) const
 {
     if (!index.isValid())
-        return QByteArray();
+        return ByteArray();
     TreeItem *item = static_cast<TreeItem*>(index.internalPointer());
     return item->header();
 }
@@ -160,10 +157,10 @@ bool TreeModel::hasEmptyHeader(const ModelIndex &index) const
     return item->hasEmptyHeader();
 }
 
-QByteArray TreeModel::body(const ModelIndex &index) const
+ByteArray TreeModel::body(const ModelIndex &index) const
 {
     if (!index.isValid())
-        return QByteArray();
+        return ByteArray();
     TreeItem *item = static_cast<TreeItem*>(index.internalPointer());
     return item->body();
 }
@@ -176,10 +173,10 @@ bool TreeModel::hasEmptyBody(const ModelIndex &index) const
     return item->hasEmptyBody();
 }
 
-QByteArray TreeModel::parsingData(const ModelIndex &index) const
+ByteArray TreeModel::parsingData(const ModelIndex &index) const
 {
     if (!index.isValid())
-        return QByteArray();
+        return ByteArray();
     TreeItem *item = static_cast<TreeItem*>(index.internalPointer());
     return item->parsingData();
 }
@@ -332,7 +329,7 @@ void TreeModel::addInfo(const ModelIndex &index, const CBString &data, const boo
         return;
 
     TreeItem *item = static_cast<TreeItem*>(index.internalPointer());
-    item->addInfo(data, (BOOLEAN)append);
+    item->addInfo(data, append);
     //emit dataChanged(index, index);
 }
 
@@ -346,7 +343,7 @@ void TreeModel::setAction(const ModelIndex &index, const UINT8 action)
     //emit dataChanged(index, index);
 }
 
-void TreeModel::setParsingData(const ModelIndex &index, const QByteArray &data)
+void TreeModel::setParsingData(const ModelIndex &index, const ByteArray &data)
 {
     if (!index.isValid())
         return;
@@ -358,8 +355,8 @@ void TreeModel::setParsingData(const ModelIndex &index, const QByteArray &data)
 
 ModelIndex TreeModel::addItem(const UINT8 type, const UINT8 subtype,
     const CBString & name, const CBString & text, const CBString & info,
-    const QByteArray & header, const QByteArray & body, 
-    const bool fixed, const QByteArray & parsingData,
+    const ByteArray & header, const ByteArray & body, 
+    const bool fixed, const ByteArray & parsingData,
     const ModelIndex & parent, const UINT8 mode)
 {
     TreeItem *item = 0;

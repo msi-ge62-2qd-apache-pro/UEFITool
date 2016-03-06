@@ -20,7 +20,7 @@ struct REGION_INFO {
     UINT32 offset;
     UINT32 length;
     UINT8  type;
-    QByteArray data;
+    ByteArray data;
     friend bool operator< (const REGION_INFO & lhs, const REGION_INFO & rhs){ return lhs.offset < rhs.offset; }
 };
 
@@ -54,7 +54,7 @@ void FfsParser::clearMessages()
 }
 
 // Firmware image parsing functions
-STATUS FfsParser::parse(const QByteArray & buffer) 
+STATUS FfsParser::parse(const ByteArray & buffer) 
 {
     ModelIndex root;
     STATUS result = performFirstPass(buffer, root);
@@ -72,7 +72,7 @@ STATUS FfsParser::parse(const QByteArray & buffer)
     return result;
 }
 
-STATUS FfsParser::performFirstPass(const QByteArray & buffer, ModelIndex & index)
+STATUS FfsParser::performFirstPass(const ByteArray & buffer, ModelIndex & index)
 {
     // Reset capsule offset fixup value
     capsuleOffsetFixup = 0;
@@ -103,8 +103,8 @@ STATUS FfsParser::performFirstPass(const QByteArray & buffer, ModelIndex & index
         }
 
         capsuleHeaderSize = capsuleHeader->HeaderSize;
-        QByteArray header = buffer.left(capsuleHeaderSize);
-        QByteArray body = buffer.mid(capsuleHeaderSize);
+        ByteArray header = buffer.left(capsuleHeaderSize);
+        ByteArray body = buffer.mid(capsuleHeaderSize);
         CBString name("UEFI capsule");
         CBString info;
         info.format("Capsule GUID: %s\nFull size: %Xh (%d)\nHeader size: %Xh (%d)\nImage size: %Xh (%d)\nFlags: %08Xh",
@@ -136,8 +136,8 @@ STATUS FfsParser::performFirstPass(const QByteArray & buffer, ModelIndex & index
         }
 
         capsuleHeaderSize = capsuleHeader->HeaderSize;
-        QByteArray header = buffer.left(capsuleHeaderSize);
-        QByteArray body = buffer.right(buffer.size() - capsuleHeaderSize);
+        ByteArray header = buffer.left(capsuleHeaderSize);
+        ByteArray body = buffer.right(buffer.size() - capsuleHeaderSize);
         CBString name("Toshiba capsule");
         CBString info;
         info.format("Capsule GUID: %s\nFull size: %Xh (%d)\nHeader size: %Xh (%d)\nImage size: %Xh (%d)\nFlags: %08Xh",
@@ -176,8 +176,8 @@ STATUS FfsParser::performFirstPass(const QByteArray & buffer, ModelIndex & index
         }
 
         capsuleHeaderSize = capsuleHeader->RomImageOffset;
-        QByteArray header = buffer.left(capsuleHeaderSize);
-        QByteArray body = buffer.mid(capsuleHeaderSize);
+        ByteArray header = buffer.left(capsuleHeaderSize);
+        ByteArray body = buffer.mid(capsuleHeaderSize);
         CBString name("AMI Aptio capsule");
         CBString info;
         info.format("Capsule GUID: %s\nFull size: %Xh (%d)\nHeader size: %Xh (%d)\nImage size: %Xh (%d)\nFlags: %08Xh",
@@ -200,7 +200,7 @@ STATUS FfsParser::performFirstPass(const QByteArray & buffer, ModelIndex & index
     }
 
     // Skip capsule header to have flash chip image
-    QByteArray flashImage = buffer.mid(capsuleHeaderSize);
+    ByteArray flashImage = buffer.mid(capsuleHeaderSize);
 
     // Check for Intel flash descriptor presence
     const FLASH_DESCRIPTOR_HEADER* descriptorHeader = (const FLASH_DESCRIPTOR_HEADER*)flashImage.constData();
@@ -224,11 +224,11 @@ STATUS FfsParser::performFirstPass(const QByteArray & buffer, ModelIndex & index
     info.format("Full size: %Xh (%d)", flashImage.size(), flashImage.size());
 
     // Construct parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
     pdata.offset = capsuleHeaderSize;
 
     // Add tree item
-    ModelIndex biosIndex = model->addItem(Types::Image, Subtypes::UefiImage, name, CBString(), info, QByteArray(), flashImage, TRUE, parsingDataToQByteArray(pdata), index);
+    ModelIndex biosIndex = model->addItem(Types::Image, Subtypes::UefiImage, name, CBString(), info, ByteArray(), flashImage, TRUE, parsingDataToByteArray(pdata), index);
 
     // Parse the image
     result = parseRawArea(flashImage, biosIndex);
@@ -237,14 +237,14 @@ STATUS FfsParser::performFirstPass(const QByteArray & buffer, ModelIndex & index
     return result;
 }
 
-STATUS FfsParser::parseIntelImage(const QByteArray & intelImage, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
+STATUS FfsParser::parseIntelImage(const ByteArray & intelImage, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
 {
     // Sanity check
     if (intelImage.isEmpty())
         return EFI_INVALID_PARAMETER;
 
     // Get parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Store the beginning of descriptor as descriptor base address
     const UINT8* descriptor = (const UINT8*)intelImage.constData();
@@ -499,11 +499,11 @@ STATUS FfsParser::parseIntelImage(const QByteArray & intelImage, const UINT32 pa
     pdata.offset = parentOffset;
 
     // Add Intel image tree item
-    index = model->addItem(Types::Image, Subtypes::IntelImage, name, CBString(), info, QByteArray(), intelImage, TRUE, parsingDataToQByteArray(pdata), parent);
+    index = model->addItem(Types::Image, Subtypes::IntelImage, name, CBString(), info, ByteArray(), intelImage, TRUE, parsingDataToByteArray(pdata), parent);
 
     // Descriptor
     // Get descriptor info
-    QByteArray body = intelImage.left(FLASH_DESCRIPTOR_SIZE);
+    ByteArray body = intelImage.left(FLASH_DESCRIPTOR_SIZE);
     name = CBString("Descriptor region");
     info = CBString("Full size: 1000h (4096)");
     
@@ -586,7 +586,7 @@ STATUS FfsParser::parseIntelImage(const QByteArray & intelImage, const UINT32 pa
     }
 
     // Add descriptor tree item
-    ModelIndex regionIndex = model->addItem(Types::Region, Subtypes::DescriptorRegion, name, CBString(), info, QByteArray(), body, TRUE, parsingDataToQByteArray(pdata), index);
+    ModelIndex regionIndex = model->addItem(Types::Region, Subtypes::DescriptorRegion, name, CBString(), info, ByteArray(), body, TRUE, parsingDataToByteArray(pdata), index);
     
     // Parse regions
     UINT8 result = ERR_SUCCESS;
@@ -617,10 +617,10 @@ STATUS FfsParser::parseIntelImage(const QByteArray & intelImage, const UINT32 pa
         case Subtypes::OnePadding:
         case Subtypes::DataPadding: {
             // Add padding between regions
-            QByteArray padding = intelImage.mid(region.offset, region.length);
+            ByteArray padding = intelImage.mid(region.offset, region.length);
 
             // Get parent's parsing data
-            PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+            PARSING_DATA pdata = parsingDataFromModelIndex(index);
 
             // Get info
             name = CBString("Padding");
@@ -630,7 +630,7 @@ STATUS FfsParser::parseIntelImage(const QByteArray & intelImage, const UINT32 pa
             pdata.offset = parentOffset + region.offset;
 
             // Add tree item
-            regionIndex = model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, QByteArray(), padding, TRUE, parsingDataToQByteArray(pdata), index);
+            regionIndex = model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
             result = ERR_SUCCESS;
             } break;
         default:
@@ -645,7 +645,7 @@ STATUS FfsParser::parseIntelImage(const QByteArray & intelImage, const UINT32 pa
     return parseResult;
 }
 
-STATUS FfsParser::parseGbeRegion(const QByteArray & gbe, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
+STATUS FfsParser::parseGbeRegion(const ByteArray & gbe, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
 {
     // Check sanity
     if (gbe.isEmpty())
@@ -654,7 +654,7 @@ STATUS FfsParser::parseGbeRegion(const QByteArray & gbe, const UINT32 parentOffs
         return ERR_INVALID_REGION;
 
     // Get parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Get info
     CBString name("GbE region");
@@ -676,19 +676,19 @@ STATUS FfsParser::parseGbeRegion(const QByteArray & gbe, const UINT32 parentOffs
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, Subtypes::GbeRegion, name, CBString(), info, QByteArray(), gbe, TRUE, parsingDataToQByteArray(pdata), parent);
+    index = model->addItem(Types::Region, Subtypes::GbeRegion, name, CBString(), info, ByteArray(), gbe, TRUE, parsingDataToByteArray(pdata), parent);
 
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseMeRegion(const QByteArray & me, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
+STATUS FfsParser::parseMeRegion(const ByteArray & me, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
 {
     // Check sanity
     if (me.isEmpty())
         return ERR_EMPTY_REGION;
 
     // Get parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Get info
     CBString name("ME region");
@@ -698,7 +698,7 @@ STATUS FfsParser::parseMeRegion(const QByteArray & me, const UINT32 parentOffset
     bool versionFound = true;
     bool emptyRegion = false;
     // Check for empty region
-    if (me.count() == me.count('\xFF') || me.count() == me.count('\x00')) {
+    if (me.size() == me.count('\xFF') || me.size() == me.count('\x00')) {
         // Further parsing not needed
         emptyRegion = true;
         info += "\nState: empty";
@@ -730,7 +730,7 @@ STATUS FfsParser::parseMeRegion(const QByteArray & me, const UINT32 parentOffset
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, Subtypes::MeRegion, name, CBString(), info, QByteArray(), me, TRUE, parsingDataToQByteArray(pdata), parent);
+    index = model->addItem(Types::Region, Subtypes::MeRegion, name, CBString(), info, ByteArray(), me, TRUE, parsingDataToByteArray(pdata), parent);
 
     // Show messages
     if (emptyRegion) {
@@ -743,14 +743,14 @@ STATUS FfsParser::parseMeRegion(const QByteArray & me, const UINT32 parentOffset
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parsePdrRegion(const QByteArray & pdr, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
+STATUS FfsParser::parsePdrRegion(const ByteArray & pdr, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
 {
     // Check sanity
     if (pdr.isEmpty())
         return ERR_EMPTY_REGION;
 
     // Get parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Get info
     CBString name("PDR region");
@@ -760,7 +760,7 @@ STATUS FfsParser::parsePdrRegion(const QByteArray & pdr, const UINT32 parentOffs
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, Subtypes::PdrRegion, name, CBString(), info, QByteArray(), pdr, TRUE, parsingDataToQByteArray(pdata), parent);
+    index = model->addItem(Types::Region, Subtypes::PdrRegion, name, CBString(), info, ByteArray(), pdr, TRUE, parsingDataToByteArray(pdata), parent);
 
     // Parse PDR region as BIOS space
     UINT8 result = parseRawArea(pdr, index);
@@ -770,14 +770,14 @@ STATUS FfsParser::parsePdrRegion(const QByteArray & pdr, const UINT32 parentOffs
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseGeneralRegion(const UINT8 subtype, const QByteArray & region, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
+STATUS FfsParser::parseGeneralRegion(const UINT8 subtype, const ByteArray & region, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
 {
     // Check sanity
     if (region.isEmpty())
         return ERR_EMPTY_REGION;
 
     // Get parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Get info
     CBString name; name.format("%s region", (const char *)itemSubtypeToString(Types::Region, subtype));
@@ -787,19 +787,19 @@ STATUS FfsParser::parseGeneralRegion(const UINT8 subtype, const QByteArray & reg
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, subtype, name, CBString(), info, QByteArray(), region, TRUE, parsingDataToQByteArray(pdata), parent);
+    index = model->addItem(Types::Region, subtype, name, CBString(), info, ByteArray(), region, TRUE, parsingDataToByteArray(pdata), parent);
 
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseBiosRegion(const QByteArray & bios, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
+STATUS FfsParser::parseBiosRegion(const ByteArray & bios, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
 {
     // Sanity check
     if (bios.isEmpty())
         return ERR_EMPTY_REGION;
 
     // Get parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Get info
     CBString name("BIOS region");
@@ -809,28 +809,28 @@ STATUS FfsParser::parseBiosRegion(const QByteArray & bios, const UINT32 parentOf
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, Subtypes::BiosRegion, name, CBString(), info, QByteArray(), bios, TRUE, parsingDataToQByteArray(pdata), parent);
+    index = model->addItem(Types::Region, Subtypes::BiosRegion, name, CBString(), info, ByteArray(), bios, TRUE, parsingDataToByteArray(pdata), parent);
 
     return parseRawArea(bios, index);
 }
 
-UINT8 FfsParser::getPaddingType(const QByteArray & padding)
+UINT8 FfsParser::getPaddingType(const ByteArray & padding)
 {
-    if (padding.count('\x00') == padding.count())
+    if (padding.count('\x00') == padding.size())
         return Subtypes::ZeroPadding;
-    if (padding.count('\xFF') == padding.count())
+    if (padding.count('\xFF') == padding.size())
         return Subtypes::OnePadding;
     return Subtypes::DataPadding;
 }
 
-STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index)
+STATUS FfsParser::parseRawArea(const ByteArray & data, const ModelIndex & index)
 {
     // Sanity check
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;
 
     // Get parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
     UINT32 headerSize = model->header(index).size();
     UINT32 offset = pdata.offset + headerSize;
 
@@ -847,7 +847,7 @@ STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index
     CBString info;
     if (prevVolumeOffset > 0) {
         // Get info
-        QByteArray padding = data.left(prevVolumeOffset);
+        ByteArray padding = data.left(prevVolumeOffset);
         name = CBString("Padding");
         info.format("Full size: %Xh (%d)", padding.size(), padding.size());
 
@@ -855,7 +855,7 @@ STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index
         pdata.offset = offset;
 
         // Add tree item
-        model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, QByteArray(), padding, TRUE, parsingDataToQByteArray(pdata), index);
+        model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
     }
 
     // Search for and parse all volumes
@@ -868,7 +868,7 @@ STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index
         if (volumeOffset > prevVolumeOffset + prevVolumeSize) {
             UINT32 paddingOffset = prevVolumeOffset + prevVolumeSize;
             UINT32 paddingSize = volumeOffset - paddingOffset;
-            QByteArray padding = data.mid(paddingOffset, paddingSize);
+            ByteArray padding = data.mid(paddingOffset, paddingSize);
 
             // Get info
             name = CBString("Padding");
@@ -878,7 +878,7 @@ STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index
             pdata.offset = offset + paddingOffset;
 
             // Add tree item
-            model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, QByteArray(), padding, TRUE, parsingDataToQByteArray(pdata), index);
+            model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
         }
 
         // Get volume size
@@ -896,10 +896,10 @@ STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index
             return ERR_INVALID_VOLUME;
         }
         
-        QByteArray volume = data.mid(volumeOffset, volumeSize);
+        ByteArray volume = data.mid(volumeOffset, volumeSize);
         if (volumeSize > (UINT32)volume.size()) {
             // Mark the rest as padding and finish the parsing
-            QByteArray padding = data.right(volume.size());
+            ByteArray padding = data.right(volume.size());
 
             // Get info
             name = CBString("Padding");
@@ -909,7 +909,7 @@ STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index
             pdata.offset = offset + volumeOffset;
 
             // Add tree item
-            ModelIndex paddingIndex = model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, QByteArray(), padding, TRUE, parsingDataToQByteArray(pdata), index);
+            ModelIndex paddingIndex = model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
             msg(paddingIndex, "parseRawArea: one of volumes inside overlaps the end of data");
 
             // Update variables
@@ -940,7 +940,7 @@ STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index
     // Padding at the end of BIOS space
     volumeOffset = prevVolumeOffset + prevVolumeSize;
     if ((UINT32)data.size() > volumeOffset) {
-        QByteArray padding = data.mid(volumeOffset);
+        ByteArray padding = data.mid(volumeOffset);
 
         // Get info
         name = CBString("Padding");
@@ -950,7 +950,7 @@ STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index
         pdata.offset = offset + headerSize + volumeOffset;
 
         // Add tree item
-        model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, QByteArray(), padding, TRUE, parsingDataToQByteArray(pdata), index);
+        model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
     }
 
     // Parse bodies
@@ -971,14 +971,14 @@ STATUS FfsParser::parseRawArea(const QByteArray & data, const ModelIndex & index
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseVolumeHeader(const QByteArray & volume, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
+STATUS FfsParser::parseVolumeHeader(const ByteArray & volume, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
 {
     // Sanity check
     if (volume.isEmpty())
         return ERR_INVALID_PARAMETER;
 
     // Get parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Check that there is space for the volume header
         if ((UINT32)volume.size() < sizeof(EFI_FIRMWARE_VOLUME_HEADER)) {
@@ -1022,7 +1022,7 @@ STATUS FfsParser::parseVolumeHeader(const QByteArray & volume, const UINT32 pare
     UINT8 ffsVersion = 0;
 
     // Check for FFS v2 volume
-    QByteArray guid = QByteArray::fromRawData((const char*)volumeHeader->FileSystemGuid.Data, sizeof(EFI_GUID));
+    ByteArray guid = ByteArray((const char*)volumeHeader->FileSystemGuid.Data, sizeof(EFI_GUID));
     if (std::find(FFSv2Volumes.begin(), FFSv2Volumes.end(), guid) != FFSv2Volumes.end()) {
         isUnknown = false;
         ffsVersion = 2;
@@ -1103,7 +1103,7 @@ STATUS FfsParser::parseVolumeHeader(const QByteArray & volume, const UINT32 pare
     // Check header checksum by recalculating it
     CBString checksumStr("valid");
     bool msgInvalidChecksum = false;
-    QByteArray tempHeader((const char*)volumeHeader, volumeHeader->HeaderLength);
+    ByteArray tempHeader((const char*)volumeHeader, volumeHeader->HeaderLength);
     ((EFI_FIRMWARE_VOLUME_HEADER*)tempHeader.data())->Checksum = 0;
     UINT16 calculated = calculateChecksum16((const UINT16*)tempHeader.constData(), volumeHeader->HeaderLength);
     if (volumeHeader->Checksum != calculated) {
@@ -1112,8 +1112,8 @@ STATUS FfsParser::parseVolumeHeader(const QByteArray & volume, const UINT32 pare
     }
 
     // Get info
-    QByteArray header = volume.left(headerSize);
-    QByteArray body = volume.mid(headerSize);
+    ByteArray header = volume.left(headerSize);
+    ByteArray body = volume.mid(headerSize);
     CBString name = guidToString(volumeHeader->FileSystemGuid);
     CBString info; 
     info.format("ZeroVector:\n%02X %02X %02X %02X %02X %02X %02X %02X\n%02X %02X %02X %02X %02X %02X %02X %02X",
@@ -1167,7 +1167,7 @@ STATUS FfsParser::parseVolumeHeader(const QByteArray & volume, const UINT32 pare
         else if (ffsVersion == 3)
             subtype = Subtypes::Ffs3Volume;
     }
-    index = model->addItem(Types::Volume, subtype, name, text, info, header, body, TRUE, parsingDataToQByteArray(pdata), parent);
+    index = model->addItem(Types::Volume, subtype, name, text, info, header, body, TRUE, parsingDataToByteArray(pdata), parent);
 
     // Show messages
     if (isUnknown)
@@ -1184,7 +1184,7 @@ STATUS FfsParser::parseVolumeHeader(const QByteArray & volume, const UINT32 pare
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::findNextVolume(const ModelIndex & index, const QByteArray & bios, const UINT32 parentOffset, const UINT32 volumeOffset, UINT32 & nextVolumeOffset)
+STATUS FfsParser::findNextVolume(const ModelIndex & index, const ByteArray & bios, const UINT32 parentOffset, const UINT32 volumeOffset, UINT32 & nextVolumeOffset)
 {
     int nextIndex = bios.indexOf(EFI_FV_SIGNATURE, volumeOffset);
     if (nextIndex < EFI_FV_SIGNATURE_OFFSET)
@@ -1222,7 +1222,7 @@ STATUS FfsParser::findNextVolume(const ModelIndex & index, const QByteArray & bi
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::getVolumeSize(const QByteArray & bios, UINT32 volumeOffset, UINT32 & volumeSize, UINT32 & bmVolumeSize)
+STATUS FfsParser::getVolumeSize(const ByteArray & bios, UINT32 volumeOffset, UINT32 & volumeSize, UINT32 & bmVolumeSize)
 {
     // Check that there is space for the volume header and at least two block map entries.
     if ((UINT32)bios.size() < volumeOffset + sizeof(EFI_FIRMWARE_VOLUME_HEADER) + 2 * sizeof(EFI_FV_BLOCK_MAP_ENTRY))
@@ -1232,7 +1232,7 @@ STATUS FfsParser::getVolumeSize(const QByteArray & bios, UINT32 volumeOffset, UI
     const EFI_FIRMWARE_VOLUME_HEADER* volumeHeader = (const EFI_FIRMWARE_VOLUME_HEADER*)(bios.constData() + volumeOffset);
 
     // Check volume signature
-    if (QByteArray((const char*)&volumeHeader->Signature, sizeof(volumeHeader->Signature)) != EFI_FV_SIGNATURE)
+    if (ByteArray((const char*)&volumeHeader->Signature, sizeof(volumeHeader->Signature)) != EFI_FV_SIGNATURE)
         return ERR_INVALID_VOLUME;
 
     // Calculate volume size using BlockMap
@@ -1255,21 +1255,21 @@ STATUS FfsParser::getVolumeSize(const QByteArray & bios, UINT32 volumeOffset, UI
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseVolumeNonUefiData(const QByteArray & data, const UINT32 parentOffset, const ModelIndex & index)
+STATUS FfsParser::parseVolumeNonUefiData(const ByteArray & data, const UINT32 parentOffset, const ModelIndex & index)
 {
     // Sanity check
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;
 
     // Get parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
 
     // Modify it
     pdata.offset += parentOffset;
 
     // Search for VTF GUID backwards in received data
-    QByteArray padding = data;
-    QByteArray vtf;
+    ByteArray padding = data;
+    ByteArray vtf;
     INT32 vtfIndex = data.lastIndexOf(EFI_FFS_VOLUME_TOP_FILE_GUID);
     if (vtfIndex >= 0) { // VTF candidate found inside non-UEFI data
         padding = data.left(vtfIndex);
@@ -1290,12 +1290,12 @@ STATUS FfsParser::parseVolumeNonUefiData(const QByteArray & data, const UINT32 p
     CBString info; info.format("Full size: %Xh (%d)", padding.size(), padding.size());
 
     // Add padding tree item
-    ModelIndex paddingIndex = model->addItem(Types::Padding, Subtypes::DataPadding, "Non-UEFI data", CBString(), info, QByteArray(), padding, TRUE, parsingDataToQByteArray(pdata), index);
+    ModelIndex paddingIndex = model->addItem(Types::Padding, Subtypes::DataPadding, "Non-UEFI data", CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
     msg(paddingIndex, "parseVolumeNonUefiData: non-UEFI data found in volume's free space");
 
     if (vtfIndex >= 0) {
         // Get VTF file header
-        QByteArray header = vtf.left(sizeof(EFI_FFS_FILE_HEADER));
+        ByteArray header = vtf.left(sizeof(EFI_FFS_FILE_HEADER));
         const EFI_FFS_FILE_HEADER* fileHeader = (const EFI_FFS_FILE_HEADER*)header.constData();
         if (pdata.ffsVersion == 3 && (fileHeader->Attributes & FFS_ATTRIB_LARGE_FILE)) {
             header = vtf.left(sizeof(EFI_FFS_FILE_HEADER2));
@@ -1313,7 +1313,7 @@ STATUS FfsParser::parseVolumeNonUefiData(const QByteArray & data, const UINT32 p
             info.format("Full size: %Xh (%d)", vtf.size(), vtf.size());
 
             // Add padding tree item
-            ModelIndex paddingIndex = model->addItem(Types::Padding, Subtypes::DataPadding, "Non-UEFI data", CBString(), info, QByteArray(), vtf, TRUE, parsingDataToQByteArray(pdata), index);
+            ModelIndex paddingIndex = model->addItem(Types::Padding, Subtypes::DataPadding, "Non-UEFI data", CBString(), info, ByteArray(), vtf, TRUE, parsingDataToByteArray(pdata), index);
             msg(paddingIndex, "parseVolumeNonUefiData: non-UEFI data found in volume's free space");
         }
     }
@@ -1328,11 +1328,11 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
         return ERR_INVALID_PARAMETER;
 
     // Get volume header size and body
-    QByteArray volumeBody = model->body(index);
+    ByteArray volumeBody = model->body(index);
     UINT32 volumeHeaderSize = model->header(index).size();
 
     // Get parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
     UINT32 offset = pdata.offset;
 
     if (pdata.ffsVersion != 2 && pdata.ffsVersion != 3) // Don't parse unknown volumes
@@ -1347,11 +1347,11 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
         // Check file size 
         if (fileSize < sizeof(EFI_FFS_FILE_HEADER) || fileSize > volumeBodySize - fileOffset) {
             // Check that we are at the empty space
-            QByteArray header = volumeBody.mid(fileOffset, sizeof(EFI_FFS_FILE_HEADER));
+            ByteArray header = volumeBody.mid(fileOffset, sizeof(EFI_FFS_FILE_HEADER));
             if (header.count(pdata.emptyByte) == header.size()) { //Empty space
                 // Check free space to be actually free
-                QByteArray freeSpace = volumeBody.mid(fileOffset);
-                if (freeSpace.count(pdata.emptyByte) != freeSpace.count()) {
+                ByteArray freeSpace = volumeBody.mid(fileOffset);
+                if (freeSpace.count(pdata.emptyByte) != freeSpace.size()) {
                     // Search for the first non-empty byte
                     UINT32 i;
                     UINT32 size = freeSpace.size();
@@ -1371,13 +1371,13 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
 
                     // Add all bytes before as free space
                     if (i > 0) {
-                        QByteArray free = freeSpace.left(i);
+                        ByteArray free = freeSpace.left(i);
 
                         // Get info
                         CBString info; info.format("Full size: %Xh (%d)", free.size(), free.size());
 
                         // Add free space item
-                        model->addItem(Types::FreeSpace, 0, CBString("Volume free space"), CBString(), info, QByteArray(), free, FALSE, parsingDataToQByteArray(pdata), index);
+                        model->addItem(Types::FreeSpace, 0, CBString("Volume free space"), CBString(), info, ByteArray(), free, FALSE, parsingDataToByteArray(pdata), index);
                     }
 
                     // Parse non-UEFI data 
@@ -1391,7 +1391,7 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
                     CBString info; info.format("Full size: %Xh (%d)", freeSpace.size(), freeSpace.size());
 
                     // Add free space item
-                    model->addItem(Types::FreeSpace, 0, CBString("Volume free space"), CBString(), info, QByteArray(), freeSpace, FALSE, parsingDataToQByteArray(pdata), index);
+                    model->addItem(Types::FreeSpace, 0, CBString("Volume free space"), CBString(), info, ByteArray(), freeSpace, FALSE, parsingDataToByteArray(pdata), index);
                 }
                 break; // Exit from parsing loop
             }
@@ -1403,8 +1403,8 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
         }
 
         // Get file header
-        QByteArray file = volumeBody.mid(fileOffset, fileSize);
-        QByteArray header = file.left(sizeof(EFI_FFS_FILE_HEADER));
+        ByteArray file = volumeBody.mid(fileOffset, fileSize);
+        ByteArray header = file.left(sizeof(EFI_FFS_FILE_HEADER));
         const EFI_FFS_FILE_HEADER* fileHeader = (const EFI_FFS_FILE_HEADER*)header.constData();
         if (pdata.ffsVersion == 3 && (fileHeader->Attributes & FFS_ATTRIB_LARGE_FILE)) {
             header = file.left(sizeof(EFI_FFS_FILE_HEADER2));
@@ -1427,7 +1427,7 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
         // Skip non-file entries and pad files
         if (model->type(current) != Types::File || model->subtype(current) == EFI_FV_FILETYPE_PAD)
             continue;
-        QByteArray currentGuid = model->header(current).left(sizeof(EFI_GUID));
+        ByteArray currentGuid = model->header(current).left(sizeof(EFI_GUID));
         // Check files after current for having an equal GUID
         for (int j = i + 1; j < model->rowCount(index); j++) {
             ModelIndex another = index.child(j, 0);
@@ -1435,7 +1435,7 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
             if (model->type(another) != Types::File)
                 continue;
             // Check GUIDs for being equal
-            QByteArray anotherGuid = model->header(another).left(sizeof(EFI_GUID));
+            ByteArray anotherGuid = model->header(another).left(sizeof(EFI_GUID));
             if (currentGuid == anotherGuid) {
                 msg(another, "parseVolumeBody: file with duplicate GUID %s", (const char *)guidToString(*(const EFI_GUID*)anotherGuid.constData()));
             }
@@ -1461,7 +1461,7 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
     return ERR_SUCCESS;
 }
 
-UINT32 FfsParser::getFileSize(const QByteArray & volume, const UINT32 fileOffset, const UINT8 ffsVersion)
+UINT32 FfsParser::getFileSize(const ByteArray & volume, const UINT32 fileOffset, const UINT8 ffsVersion)
 {
     if (ffsVersion == 2) {
         if ((UINT32)volume.size() < fileOffset + sizeof(EFI_FFS_FILE_HEADER))
@@ -1482,7 +1482,7 @@ UINT32 FfsParser::getFileSize(const QByteArray & volume, const UINT32 fileOffset
         return 0;
 }
 
-STATUS FfsParser::parseFileHeader(const QByteArray & file, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
+STATUS FfsParser::parseFileHeader(const ByteArray & file, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index)
 {
     // Sanity check
     if (file.isEmpty())
@@ -1492,10 +1492,10 @@ STATUS FfsParser::parseFileHeader(const QByteArray & file, const UINT32 parentOf
         return ERR_INVALID_FILE;
 
     // Get parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Get file header
-    QByteArray header = file.left(sizeof(EFI_FFS_FILE_HEADER));
+    ByteArray header = file.left(sizeof(EFI_FFS_FILE_HEADER));
     const EFI_FFS_FILE_HEADER* fileHeader = (const EFI_FFS_FILE_HEADER*)header.constData();
     if (pdata.ffsVersion == 3 && (fileHeader->Attributes & FFS_ATTRIB_LARGE_FILE)) {
         if ((UINT32)file.size() < sizeof(EFI_FFS_FILE_HEADER2))
@@ -1516,7 +1516,7 @@ STATUS FfsParser::parseFileHeader(const QByteArray & file, const UINT32 parentOf
         msgFileAlignmentIsGreaterThanVolumes = true;
 
     // Check header checksum
-    QByteArray tempHeader = header;
+    ByteArray tempHeader = header;
     CBString headerChecksumStr("valid");
     EFI_FFS_FILE_HEADER* tempFileHeader = (EFI_FFS_FILE_HEADER*)(tempHeader.data());
     tempFileHeader->IntegrityCheck.Checksum.Header = 0;
@@ -1562,7 +1562,7 @@ STATUS FfsParser::parseFileHeader(const QByteArray & file, const UINT32 parentOf
     };
 
     // Get file body
-    QByteArray body = file.mid(header.size());
+    ByteArray body = file.mid(header.size());
 
     // Check for file tail presence
     UINT16 tail = 0;
@@ -1619,7 +1619,7 @@ STATUS FfsParser::parseFileHeader(const QByteArray & file, const UINT32 parentOf
     pdata.file.tail = tail;
 
     // Add tree item
-    index = model->addItem(Types::File, fileHeader->Type, name, text, info, header, body, fixed, parsingDataToQByteArray(pdata), parent);
+    index = model->addItem(Types::File, fileHeader->Type, name, text, info, header, body, fixed, parsingDataToByteArray(pdata), parent);
 
     // Overwrite lastVtf, if needed
     if (isVtf) {
@@ -1643,7 +1643,7 @@ STATUS FfsParser::parseFileHeader(const QByteArray & file, const UINT32 parentOf
     return ERR_SUCCESS;
 }
 
-UINT32 FfsParser::getSectionSize(const QByteArray & file, const UINT32 sectionOffset, const UINT8 ffsVersion)
+UINT32 FfsParser::getSectionSize(const ByteArray & file, const UINT32 sectionOffset, const UINT8 ffsVersion)
 {
     if (ffsVersion == 2) {
         if ((UINT32)file.size() < sectionOffset + sizeof(EFI_COMMON_SECTION_HEADER))
@@ -1694,10 +1694,10 @@ STATUS FfsParser::parsePadFileBody(const ModelIndex & index)
         return ERR_INVALID_PARAMETER;
 
     // Get data from parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
 
     // Check if all bytes of the file are empty
-    QByteArray body = model->body(index);
+    ByteArray body = model->body(index);
     if (body.size() == body.count(pdata.emptyByte))
         return ERR_SUCCESS;
 
@@ -1716,7 +1716,7 @@ STATUS FfsParser::parsePadFileBody(const ModelIndex & index)
         if (i != ALIGN8(i))
             i = ALIGN8(i) - 8;
 
-        QByteArray free = body.left(i);
+        ByteArray free = body.left(i);
 
         // Get info
         CBString info; info.format("Full size: %Xh (%d)", free.size(), free.size());
@@ -1725,13 +1725,13 @@ STATUS FfsParser::parsePadFileBody(const ModelIndex & index)
         pdata.offset += model->header(index).size();
 
         // Add tree item
-        model->addItem(Types::FreeSpace, 0, CBString("Free space"), CBString(), info, QByteArray(), free, FALSE, parsingDataToQByteArray(pdata), index);
+        model->addItem(Types::FreeSpace, 0, CBString("Free space"), CBString(), info, ByteArray(), free, FALSE, parsingDataToByteArray(pdata), index);
     }
     else 
         i = 0;
 
     // ... and all bytes after as a padding
-    QByteArray padding = body.mid(i);
+    ByteArray padding = body.mid(i);
 
     // Get info
     CBString info; info.format("Full size: %Xh (%d)", padding.size(), padding.size());
@@ -1740,7 +1740,7 @@ STATUS FfsParser::parsePadFileBody(const ModelIndex & index)
     pdata.offset += i;
 
     // Add tree item
-    ModelIndex dataIndex = model->addItem(Types::Padding, Subtypes::DataPadding, CBString("Non-UEFI data"), CBString(), info, QByteArray(), padding, TRUE, parsingDataToQByteArray(pdata), index);
+    ModelIndex dataIndex = model->addItem(Types::Padding, Subtypes::DataPadding, CBString("Non-UEFI data"), CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
 
     // Show message
     msg(dataIndex, "parsePadFileBody: non-UEFI data found in pad-file");
@@ -1751,14 +1751,14 @@ STATUS FfsParser::parsePadFileBody(const ModelIndex & index)
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseSections(const QByteArray & sections, const ModelIndex & index, const bool preparse)
+STATUS FfsParser::parseSections(const ByteArray & sections, const ModelIndex & index, const bool preparse)
 {
     // Sanity check
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;
 
     // Get data from parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
 
     // Search for and parse all sections
     UINT32 bodySize = sections.size();
@@ -1773,7 +1773,7 @@ STATUS FfsParser::parseSections(const QByteArray & sections, const ModelIndex & 
         // Check section size
         if (sectionSize < sizeof(EFI_COMMON_SECTION_HEADER) || sectionSize > (bodySize - sectionOffset)) {
             // Add padding to fill the rest of sections
-            QByteArray padding = sections.mid(sectionOffset);
+            ByteArray padding = sections.mid(sectionOffset);
             // Get info
             CBString info; info.format("Full size: %Xh (%d)", padding.size(), padding.size());
 
@@ -1783,7 +1783,7 @@ STATUS FfsParser::parseSections(const QByteArray & sections, const ModelIndex & 
             // Final parsing
             if (!preparse) {
                 // Add tree item
-                ModelIndex dataIndex = model->addItem(Types::Padding, Subtypes::DataPadding, CBString("Non-UEFI data"), CBString(), info, QByteArray(), padding, TRUE, parsingDataToQByteArray(pdata), index);
+                ModelIndex dataIndex = model->addItem(Types::Padding, Subtypes::DataPadding, CBString("Non-UEFI data"), CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
 
                 // Show message
                 msg(dataIndex, "parseSections: non-UEFI data found in sections area");
@@ -1827,7 +1827,7 @@ STATUS FfsParser::parseSections(const QByteArray & sections, const ModelIndex & 
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseSectionHeader(const QByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
+STATUS FfsParser::parseSectionHeader(const ByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
 {
     // Check sanity
     if ((UINT32)section.size() < sizeof(EFI_COMMON_SECTION_HEADER))
@@ -1862,14 +1862,14 @@ STATUS FfsParser::parseSectionHeader(const QByteArray & section, const UINT32 pa
     }
 }
 
-STATUS FfsParser::parseCommonSectionHeader(const QByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
+STATUS FfsParser::parseCommonSectionHeader(const ByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
 {
     // Check sanity
     if ((UINT32)section.size() < sizeof(EFI_COMMON_SECTION_HEADER))
         return ERR_INVALID_SECTION;
 
     // Get data from parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Obtain header fields
     const EFI_COMMON_SECTION_HEADER* sectionHeader = (const EFI_COMMON_SECTION_HEADER*)(section.constData());
@@ -1877,8 +1877,8 @@ STATUS FfsParser::parseCommonSectionHeader(const QByteArray & section, const UIN
     if (pdata.ffsVersion == 3 && uint24ToUint32(sectionHeader->Size) == EFI_SECTION2_IS_USED)
         headerSize = sizeof(EFI_COMMON_SECTION_HEADER2);
 
-    QByteArray header = section.left(headerSize);
-    QByteArray body = section.mid(headerSize);
+    ByteArray header = section.left(headerSize);
+    ByteArray body = section.mid(headerSize);
 
     // Get info
     CBString name = sectionTypeToString(sectionHeader->Type) + CBString(" section");
@@ -1893,19 +1893,19 @@ STATUS FfsParser::parseCommonSectionHeader(const QByteArray & section, const UIN
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToQByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
     } 
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseCompressedSectionHeader(const QByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
+STATUS FfsParser::parseCompressedSectionHeader(const ByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
 {
     // Check sanity
     if ((UINT32)section.size() < sizeof(EFI_COMPRESSION_SECTION))
         return ERR_INVALID_SECTION;
 
     // Get data from parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Obtain header fields
     const EFI_COMMON_SECTION_HEADER* sectionHeader = (const EFI_COMMON_SECTION_HEADER*)(section.constData());
@@ -1922,8 +1922,8 @@ STATUS FfsParser::parseCompressedSectionHeader(const QByteArray & section, const
         uncompressedLength = compressedSectionHeader->UncompressedLength;
     }
 
-    QByteArray header = section.left(headerSize);
-    QByteArray body = section.mid(headerSize);
+    ByteArray header = section.left(headerSize);
+    ByteArray body = section.mid(headerSize);
 
     // Get info
     CBString name = sectionTypeToString(sectionHeader->Type) + CBString(" section");
@@ -1942,19 +1942,19 @@ STATUS FfsParser::parseCompressedSectionHeader(const QByteArray & section, const
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToQByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
     }
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseGuidedSectionHeader(const QByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
+STATUS FfsParser::parseGuidedSectionHeader(const ByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
 {
     // Check sanity
     if ((UINT32)section.size() < sizeof(EFI_GUID_DEFINED_SECTION))
         return ERR_INVALID_SECTION;
 
     // Get data from parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Obtain header fields
     const EFI_COMMON_SECTION_HEADER* sectionHeader = (const EFI_COMMON_SECTION_HEADER*)(section.constData());
@@ -1975,7 +1975,7 @@ STATUS FfsParser::parseGuidedSectionHeader(const QByteArray & section, const UIN
 
     // Check for special GUIDed sections
     CBString additionalInfo;
-    QByteArray baGuid((const char*)&guid, sizeof(EFI_GUID));
+    ByteArray baGuid((const char*)&guid, sizeof(EFI_GUID));
     bool msgSignedSectionFound = false;
     bool msgNoAuthStatusAttribute = false;
     bool msgNoProcessingRequiredAttributeCompressed = false;
@@ -2036,7 +2036,7 @@ STATUS FfsParser::parseGuidedSectionHeader(const QByteArray & section, const UIN
 
             // Get certificate GUID
             const WIN_CERTIFICATE_UEFI_GUID* winCertificateUefiGuid = (const WIN_CERTIFICATE_UEFI_GUID*)(section.constData() + nextHeaderOffset);
-            QByteArray certTypeGuid((const char*)&winCertificateUefiGuid->CertType, sizeof(EFI_GUID));
+            ByteArray certTypeGuid((const char*)&winCertificateUefiGuid->CertType, sizeof(EFI_GUID));
 
             if (certTypeGuid == EFI_CERT_TYPE_RSA2048_SHA256_GUID) {
                 additionalInfo += "\nCertificate subtype: RSA2048/SHA256";
@@ -2053,8 +2053,8 @@ STATUS FfsParser::parseGuidedSectionHeader(const QByteArray & section, const UIN
         msgSignedSectionFound = true;
     }
 
-    QByteArray header = section.left(dataOffset);
-    QByteArray body = section.mid(dataOffset);
+    ByteArray header = section.left(dataOffset);
+    ByteArray body = section.mid(dataOffset);
 
     // Get info
     CBString name = guidToString(guid);
@@ -2076,7 +2076,7 @@ STATUS FfsParser::parseGuidedSectionHeader(const QByteArray & section, const UIN
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToQByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
 
         // Show messages
         if (msgSignedSectionFound)
@@ -2098,14 +2098,14 @@ STATUS FfsParser::parseGuidedSectionHeader(const QByteArray & section, const UIN
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseFreeformGuidedSectionHeader(const QByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
+STATUS FfsParser::parseFreeformGuidedSectionHeader(const ByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
 {
     // Check sanity
     if ((UINT32)section.size() < sizeof(EFI_FREEFORM_SUBTYPE_GUID_SECTION))
         return ERR_INVALID_SECTION;
 
     // Get data from parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Obtain header fields
     const EFI_COMMON_SECTION_HEADER* sectionHeader = (const EFI_COMMON_SECTION_HEADER*)(section.constData());
@@ -2120,8 +2120,8 @@ STATUS FfsParser::parseFreeformGuidedSectionHeader(const QByteArray & section, c
         guid = fsgHeader2->SubTypeGuid;
     }
 
-    QByteArray header = section.left(headerSize);
-    QByteArray body = section.mid(headerSize);
+    ByteArray header = section.left(headerSize);
+    ByteArray body = section.mid(headerSize);
 
     // Get info
     CBString name = sectionTypeToString(sectionHeader->Type) + CBString(" section");
@@ -2138,7 +2138,7 @@ STATUS FfsParser::parseFreeformGuidedSectionHeader(const QByteArray & section, c
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToQByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
 
         // Rename section
         model->setName(index, guidToString(guid));
@@ -2146,14 +2146,14 @@ STATUS FfsParser::parseFreeformGuidedSectionHeader(const QByteArray & section, c
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseVersionSectionHeader(const QByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
+STATUS FfsParser::parseVersionSectionHeader(const ByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
 {
     // Check sanity
     if ((UINT32)section.size() < sizeof(EFI_VERSION_SECTION))
         return ERR_INVALID_SECTION;
 
     // Get data from parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Obtain header fields
     const EFI_COMMON_SECTION_HEADER* sectionHeader = (const EFI_COMMON_SECTION_HEADER*)(section.constData());
@@ -2168,8 +2168,8 @@ STATUS FfsParser::parseVersionSectionHeader(const QByteArray & section, const UI
         buildNumber = versionHeader2->BuildNumber;
     }
 
-    QByteArray header = section.left(headerSize);
-    QByteArray body = section.mid(headerSize);
+    ByteArray header = section.left(headerSize);
+    ByteArray body = section.mid(headerSize);
     
     // Get info
     CBString name = sectionTypeToString(sectionHeader->Type) + CBString(" section");
@@ -2185,19 +2185,19 @@ STATUS FfsParser::parseVersionSectionHeader(const QByteArray & section, const UI
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToQByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
     }
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parsePostcodeSectionHeader(const QByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
+STATUS FfsParser::parsePostcodeSectionHeader(const ByteArray & section, const UINT32 parentOffset, const ModelIndex & parent, ModelIndex & index, const bool preparse)
 {
     // Check sanity
     if ((UINT32)section.size() < sizeof(POSTCODE_SECTION))
         return ERR_INVALID_SECTION;
 
     // Get data from parent's parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(parent);
+    PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Obtain header fields
     const EFI_COMMON_SECTION_HEADER* sectionHeader = (const EFI_COMMON_SECTION_HEADER*)(section.constData());
@@ -2212,8 +2212,8 @@ STATUS FfsParser::parsePostcodeSectionHeader(const QByteArray & section, const U
         postCode = postcodeHeader2->Postcode;
     }
 
-    QByteArray header = section.left(headerSize);
-    QByteArray body = section.mid(headerSize);
+    ByteArray header = section.left(headerSize);
+    ByteArray body = section.mid(headerSize);
 
     // Get info
     CBString name = sectionTypeToString(sectionHeader->Type) + CBString(" section");
@@ -2229,7 +2229,7 @@ STATUS FfsParser::parsePostcodeSectionHeader(const QByteArray & section, const U
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToQByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
     }
     return ERR_SUCCESS;
 }
@@ -2278,12 +2278,12 @@ STATUS FfsParser::parseCompressedSectionBody(const ModelIndex & index)
         return ERR_INVALID_PARAMETER;
 
     // Get data from parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
     UINT8 algorithm = pdata.section.compressed.compressionType;
 
     // Decompress section
-    QByteArray decompressed;
-    QByteArray efiDecompressed;
+    ByteArray decompressed;
+    ByteArray efiDecompressed;
     CBString info;
     STATUS result = decompress(model->body(index), algorithm, decompressed, efiDecompressed);
     if (result) {
@@ -2324,7 +2324,7 @@ STATUS FfsParser::parseCompressedSectionBody(const ModelIndex & index)
     pdata.section.compressed.algorithm = algorithm;
     if (algorithm != COMPRESSION_ALGORITHM_NONE)
         model->setCompressed(index, true);
-    model->setParsingData(index, parsingDataToQByteArray(pdata));
+    model->setParsingData(index, parsingDataToByteArray(pdata));
     
     // Parse decompressed data
     return parseSections(decompressed, index);
@@ -2337,17 +2337,17 @@ STATUS FfsParser::parseGuidedSectionBody(const ModelIndex & index)
         return ERR_INVALID_PARAMETER;
 
     // Get data from parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
     EFI_GUID guid = pdata.section.guidDefined.guid;
 
     // Check if section requires processing
-    QByteArray processed = model->body(index);
-    QByteArray efiDecompressed;
+    ByteArray processed = model->body(index);
+    ByteArray efiDecompressed;
     CBString info;
     bool parseCurrentSection = true;
     UINT8 algorithm = COMPRESSION_ALGORITHM_NONE;
     // Tiano compressed section
-    if (QByteArray((const char*)&guid, sizeof(EFI_GUID)) == EFI_GUIDED_SECTION_TIANO) {
+    if (ByteArray((const char*)&guid, sizeof(EFI_GUID)) == EFI_GUIDED_SECTION_TIANO) {
         algorithm = EFI_STANDARD_COMPRESSION;
         STATUS result = decompress(model->body(index), algorithm, processed, efiDecompressed);
         if (result) {
@@ -2376,7 +2376,7 @@ STATUS FfsParser::parseGuidedSectionBody(const ModelIndex & index)
         info.formata("\nDecompressed size: %Xh (%d)", processed.size(), processed.size());
     }
     // LZMA compressed section
-    else if (QByteArray((const char*)&guid, sizeof(EFI_GUID)) == EFI_GUIDED_SECTION_LZMA) {
+    else if (ByteArray((const char*)&guid, sizeof(EFI_GUID)) == EFI_GUIDED_SECTION_LZMA) {
         algorithm = EFI_CUSTOMIZED_COMPRESSION;
         STATUS result = decompress(model->body(index), algorithm, processed, efiDecompressed);
         if (result) {
@@ -2399,7 +2399,7 @@ STATUS FfsParser::parseGuidedSectionBody(const ModelIndex & index)
     // Update data
     if (algorithm != COMPRESSION_ALGORITHM_NONE)
         model->setCompressed(index, true);
-    model->setParsingData(index, parsingDataToQByteArray(pdata));
+    model->setParsingData(index, parsingDataToByteArray(pdata));
 
     if (!parseCurrentSection) {
         msg(index, "parseGuidedSectionBody: GUID defined section can not be processed");
@@ -2428,7 +2428,7 @@ STATUS FfsParser::parseDepexSectionBody(const ModelIndex & index)
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;
 
-    QByteArray body = model->body(index);
+    ByteArray body = model->body(index);
     CBString parsed;
 
     // Check data to be present
@@ -2565,7 +2565,7 @@ STATUS FfsParser::parseUiSectionBody(const ModelIndex & index)
     return ERR_SUCCESS;
 }
 
-STATUS FfsParser::parseAprioriRawSection(const QByteArray & body, CBString & parsed)
+STATUS FfsParser::parseAprioriRawSection(const ByteArray & body, CBString & parsed)
 {
     // Sanity check
     if (body.size() % sizeof(EFI_GUID)) {
@@ -2592,7 +2592,7 @@ STATUS FfsParser::parseRawSectionBody(const ModelIndex & index)
     // Check for apriori file
     CBString info;
     ModelIndex parentFile = model->findParentOfType(index, Types::File);
-    QByteArray parentFileGuid = model->header(parentFile).left(sizeof(EFI_GUID));
+    ByteArray parentFileGuid = model->header(parentFile).left(sizeof(EFI_GUID));
     if (parentFileGuid == EFI_PEI_APRIORI_FILE_GUID) { // PEI apriori file
         // Parse apriori file list
         CBString str;
@@ -2633,7 +2633,7 @@ STATUS FfsParser::parsePeImageSectionBody(const ModelIndex & index)
         return ERR_INVALID_PARAMETER;
 
     // Get section body
-    QByteArray body = model->body(index);
+    ByteArray body = model->body(index);
     if ((UINT32)body.size() < sizeof(EFI_IMAGE_DOS_HEADER)) {
         msg(index, "parsePeImageSectionBody: section body size is smaller than DOS header size");
         return ERR_SUCCESS;
@@ -2720,7 +2720,7 @@ STATUS FfsParser::parseTeImageSectionBody(const ModelIndex & index)
         return ERR_INVALID_PARAMETER;
 
     // Get section body
-    QByteArray body = model->body(index);
+    ByteArray body = model->body(index);
     if ((UINT32)body.size() < sizeof(EFI_IMAGE_TE_HEADER)) {
         msg(index, "parsePeImageSectionBody: section body size is smaller than TE header size");
         return ERR_SUCCESS;
@@ -2747,12 +2747,12 @@ STATUS FfsParser::parseTeImageSectionBody(const ModelIndex & index)
     }
 
     // Get data from parsing data
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
     pdata.section.teImage.imageBase = teHeader->ImageBase;
     pdata.section.teImage.adjustedImageBase = teHeader->ImageBase + teHeader->StrippedSize - sizeof(EFI_IMAGE_TE_HEADER);
     
     // Update parsing data
-    model->setParsingData(index, parsingDataToQByteArray(pdata));
+    model->setParsingData(index, parsingDataToByteArray(pdata));
 
     // Add TE info
     model->addInfo(index, info);
@@ -2774,7 +2774,7 @@ STATUS FfsParser::performSecondPass(const ModelIndex & index)
     }
 
     // Get parsing data for the last VTF
-    PARSING_DATA pdata = parsingDataFromQModelIndex(lastVtf);
+    PARSING_DATA pdata = parsingDataFromModelIndex(lastVtf);
 
     // Calculate address difference
     const UINT32 vtfSize = model->header(lastVtf).size() + model->body(lastVtf).size() + (pdata.file.hasTail ? sizeof(UINT16) : 0);
@@ -2795,7 +2795,7 @@ STATUS FfsParser::addMemoryAddressesRecursive(const ModelIndex & index, const UI
     // Set address value for non-compressed data
     if (!model->compressed(index)) {
         // Get parsing data for the current item
-        PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+        PARSING_DATA pdata = parsingDataFromModelIndex(index);
 
         // Check address sanity
         if ((const UINT64)diff + pdata.offset <= 0xFFFFFFFFUL)  {
@@ -2829,7 +2829,7 @@ STATUS FfsParser::addMemoryAddressesRecursive(const ModelIndex & index, const UI
             }
 
             // Set modified parsing data
-            model->setParsingData(index, parsingDataToQByteArray(pdata));
+            model->setParsingData(index, parsingDataToByteArray(pdata));
         }
     }
 
@@ -2848,7 +2848,7 @@ STATUS FfsParser::addOffsetsRecursive(const ModelIndex & index)
         return ERR_INVALID_PARAMETER;
     
     // Get parsing data for the current item
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
 
     // Add current offset if the element is not compressed
     // Or it's compressed, but it's parent isn't

@@ -19,7 +19,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "LZMA/LzmaDecompress.h"
 
 // Returns either new parsing data instance or obtains it from index
-PARSING_DATA parsingDataFromQModelIndex(const ModelIndex & index)
+PARSING_DATA parsingDataFromModelIndex(const ModelIndex & index)
 {
     if (index.isValid()) {
         TreeModel* model = (TreeModel*)index.model();
@@ -37,9 +37,9 @@ PARSING_DATA parsingDataFromQModelIndex(const ModelIndex & index)
 }
 
 // Converts parsing data to byte array
-QByteArray parsingDataToQByteArray(const PARSING_DATA & pdata)
+ByteArray parsingDataToByteArray(const PARSING_DATA & pdata)
 {
-    return QByteArray((const char*)&pdata, sizeof(PARSING_DATA));
+    return ByteArray((const char*)&pdata, sizeof(PARSING_DATA));
 }
 
 // Returns text representation of error code
@@ -154,7 +154,7 @@ UINT32 crc32(UINT32 initial, const UINT8* buffer, UINT32 length)
 }
 
 // Compression routines
-STATUS decompress(const QByteArray & compressedData, UINT8 & algorithm, QByteArray & decompressedData, QByteArray & efiDecompressedData)
+STATUS decompress(const ByteArray & compressedData, UINT8 & algorithm, ByteArray & decompressedData, ByteArray & efiDecompressedData)
 {
     const UINT8* data;
     UINT32 dataSize;
@@ -208,16 +208,16 @@ STATUS decompress(const QByteArray & compressedData, UINT8 & algorithm, QByteArr
 
         if (EfiResult == ERR_SUCCESS && TianoResult == ERR_SUCCESS) { // Both decompressions are OK 
             algorithm = COMPRESSION_ALGORITHM_UNDECIDED;
-            decompressedData = QByteArray((const char*)decompressed, decompressedSize);
-            efiDecompressedData = QByteArray((const char*)efiDecompressed, decompressedSize);
+            decompressedData = ByteArray((const char*)decompressed, decompressedSize);
+            efiDecompressedData = ByteArray((const char*)efiDecompressed, decompressedSize);
         }
         else if (TianoResult == ERR_SUCCESS) { // Only Tiano is OK
             algorithm = COMPRESSION_ALGORITHM_TIANO;
-            decompressedData = QByteArray((const char*)decompressed, decompressedSize);
+            decompressedData = ByteArray((const char*)decompressed, decompressedSize);
         }
         else if (EfiResult == ERR_SUCCESS) { // Only EFI 1.1 is OK
             algorithm = COMPRESSION_ALGORITHM_EFI11;
-            decompressedData = QByteArray((const char*)efiDecompressed, decompressedSize);
+            decompressedData = ByteArray((const char*)efiDecompressed, decompressedSize);
         }
         else { // Both decompressions failed
             result = ERR_STANDARD_DECOMPRESSION_FAILED;
@@ -265,12 +265,12 @@ STATUS decompress(const QByteArray & compressedData, UINT8 & algorithm, QByteArr
             }
             else {
                 algorithm = COMPRESSION_ALGORITHM_IMLZMA;
-                decompressedData = QByteArray((const char*)decompressed, decompressedSize);
+                decompressedData = ByteArray((const char*)decompressed, decompressedSize);
             }
         }
         else {
             algorithm = COMPRESSION_ALGORITHM_LZMA;
-            decompressedData = QByteArray((const char*)decompressed, decompressedSize);
+            decompressedData = ByteArray((const char*)decompressed, decompressedSize);
         }
 
         free(decompressed);

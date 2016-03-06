@@ -16,9 +16,8 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include "basetypes.h"
 #include "cbstring.h"
+#include "bytearray.h"
 #include "types.h"
-
-#include <QByteArray>
 
 class TreeItem;
 
@@ -90,7 +89,7 @@ public:
     void setText(const ModelIndex &index, const CBString &text);
     void setInfo(const ModelIndex &index, const CBString &info);
     void addInfo(const ModelIndex &index, const CBString &info, const bool append = TRUE);
-    void setParsingData(const ModelIndex &index, const QByteArray &data);
+    void setParsingData(const ModelIndex &index, const ByteArray &data);
     void setFixed(const ModelIndex &index, const bool fixed);
     void setCompressed(const ModelIndex &index, const bool compressed);
     
@@ -99,11 +98,11 @@ public:
     CBString info(const ModelIndex &index) const;
     UINT8 type(const ModelIndex &index) const;
     UINT8 subtype(const ModelIndex &index) const;
-    QByteArray header(const ModelIndex &index) const;
+    ByteArray header(const ModelIndex &index) const;
     bool hasEmptyHeader(const ModelIndex &index) const;
-    QByteArray body(const ModelIndex &index) const;
+    ByteArray body(const ModelIndex &index) const;
     bool hasEmptyBody(const ModelIndex &index) const;
-    QByteArray parsingData(const ModelIndex &index) const;
+    ByteArray parsingData(const ModelIndex &index) const;
     bool hasEmptyParsingData(const ModelIndex &index) const;
     UINT8 action(const ModelIndex &index) const;
     bool fixed(const ModelIndex &index) const;
@@ -111,8 +110,8 @@ public:
 
     ModelIndex addItem(const UINT8 type, const UINT8 subtype = 0,
         const CBString & name = CBString(), const CBString & text = CBString(), const CBString & info = CBString(),
-        const QByteArray & header = QByteArray(), const QByteArray & body = QByteArray(), 
-        const bool fixed = false, const QByteArray & parsingData = QByteArray(),
+        const ByteArray & header = ByteArray(), const ByteArray & body = ByteArray(), 
+        const bool fixed = false, const ByteArray & parsingData = ByteArray(),
         const ModelIndex & parent = ModelIndex(), const UINT8 mode = CREATE_MODE_APPEND);
 
     ModelIndex findParentOfType(const ModelIndex & index, UINT8 type) const;

@@ -17,7 +17,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <iostream>
 
 #include "../common/ffsparser.h"
-#include "ffsdumper.h"
+#include "uefiextract.h"
 
 int main(int argc, char *argv[])
 {
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 
         TreeModel model;
         FfsParser ffsParser(&model);
-        STATUS result = ffsParser.parse(buffer);
+        STATUS result = ffsParser.parse(ByteArray(buffer.constData(), buffer.size()));
         if (result)
             return result;
 
@@ -56,15 +56,15 @@ int main(int argc, char *argv[])
             std::cout << messages[i].second << std::endl;
         }
 
-        FfsDumper ffsDumper(&model);
+        UEFIExtract uefiextract(&model);
 
         if (a.arguments().length() == 2) {
-            return (ffsDumper.dump(model.index(0, 0), fileInfo.fileName().append(".dump").toLocal8Bit().constData()) != ERR_SUCCESS);
+            return (uefiextract.dump(model.index(0, 0), fileInfo.fileName().append(".dump").toLocal8Bit().constData()) != ERR_SUCCESS);
         }
         else {
             UINT32 returned = 0;
             for (int i = 2; i < a.arguments().length(); i++) {
-                result = ffsDumper.dump(model.index(0, 0), fileInfo.fileName().append(".dump").toLocal8Bit().constData(), a.arguments().at(i).toLocal8Bit().constData());
+                result = uefiextract.dump(model.index(0, 0), fileInfo.fileName().append(".dump").toLocal8Bit().constData(), a.arguments().at(i).toLocal8Bit().constData());
                 if (result)
                     returned |= (1 << (i - 1));
             }

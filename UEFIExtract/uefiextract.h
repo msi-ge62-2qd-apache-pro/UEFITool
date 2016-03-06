@@ -1,4 +1,4 @@
-/* ffsdumper.h
+/* uefiextract.h
 
 Copyright (c) 2015, Nikolaj Schlej. All rights reserved.
 This program and the accompanying materials
@@ -11,21 +11,18 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 */
 
-#ifndef __FFSDUMPER_H__
-#define __FFSDUMPER_H__
-
-#include <QByteArray>
+#ifndef __UEFIEXTRACT_H__
+#define __UEFIEXTRACT_H__
 
 #include "../common/basetypes.h"
 #include "../common/cbstring.h"
 #include "../common/treemodel.h"
-#include "../common/ffs.h"
 
-class FfsDumper
+class UEFIExtract
 {
 public:
-    explicit FfsDumper(TreeModel * treeModel);
-    ~FfsDumper();
+    explicit UEFIExtract(TreeModel * treeModel) : model(treeModel), dumped(false) {}
+    ~UEFIExtract() {}
 
     STATUS dump(const ModelIndex & root, const CBString & path, const CBString & guid = CBString());
 

@@ -11,20 +11,11 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 */
 
+#include "uefiextract.h"
+#include "../common/ffs.h"
 #include <iostream>
-#include "ffsdumper.h"
 
-
-FfsDumper::FfsDumper(TreeModel* treeModel)
-    : model(treeModel), dumped(false)
-{
-}
-
-FfsDumper::~FfsDumper()
-{
-}
-
-STATUS FfsDumper::dump(const ModelIndex & root, const CBString & path, const CBString & guid)
+STATUS UEFIExtract::dump(const ModelIndex & root, const CBString & path, const CBString & guid)
 {
     dumped = false;
     UINT8 result = recursiveDump(root, path, guid);
@@ -35,7 +26,7 @@ STATUS FfsDumper::dump(const ModelIndex & root, const CBString & path, const CBS
     return ERR_SUCCESS;
 }
 
-STATUS FfsDumper::recursiveDump(const ModelIndex & index, const CBString & path, const CBString & guid)
+STATUS UEFIExtract::recursiveDump(const ModelIndex & index, const CBString & path, const CBString & guid)
 {
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;

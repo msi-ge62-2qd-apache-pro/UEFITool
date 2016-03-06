@@ -13,7 +13,7 @@ WITHWARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "ffs.h"
 
 // This is a workaround for the lack of static std::vector initializer before C++11
-const QByteArray FFSv2VolumesInt[] = {
+const ByteArray FFSv2VolumesInt[] = {
     EFI_FIRMWARE_FILE_SYSTEM_GUID,
     EFI_FIRMWARE_FILE_SYSTEM2_GUID,
     EFI_APPLE_BOOT_VOLUME_FILE_SYSTEM_GUID,
@@ -24,9 +24,9 @@ const QByteArray FFSv2VolumesInt[] = {
 };
 // This number must be updated if the array above is grown
 #define FFSv2VolumesIntSize 7
-const std::vector<QByteArray> FFSv2Volumes(FFSv2VolumesInt, FFSv2VolumesInt + FFSv2VolumesIntSize);
+const std::vector<ByteArray> FFSv2Volumes(FFSv2VolumesInt, FFSv2VolumesInt + FFSv2VolumesIntSize);
 // Luckily, FFSv3Volumes now only has 1 element
-const std::vector<QByteArray> FFSv3Volumes(1, EFI_FIRMWARE_FILE_SYSTEM3_GUID);
+const std::vector<ByteArray> FFSv3Volumes(1, EFI_FIRMWARE_FILE_SYSTEM3_GUID);
 
 const UINT8 ffsAlignmentTable[] =
 { 0, 4, 7, 9, 10, 12, 15, 16 };

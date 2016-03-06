@@ -14,26 +14,26 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #ifndef __UTILITY_H__
 #define __UTILITY_H__
 
-#include <QByteArray>
 #include "basetypes.h"
-#include "parsingdata.h"
+#include "bytearray.h"
 #include "cbstring.h"
 #include "treemodel.h"
+#include "parsingdata.h"
 
 // Returns either new parsing data instance or obtains it from index
-PARSING_DATA parsingDataFromQModelIndex(const ModelIndex & index);
+PARSING_DATA parsingDataFromModelIndex(const ModelIndex & index);
 
 // Converts parsing data to byte array
-QByteArray parsingDataToQByteArray(const PARSING_DATA & pdata);
+ByteArray parsingDataToByteArray(const PARSING_DATA & pdata);
 
 // Converts error code to string
 extern CBString errorCodeToString(UINT8 errorCode);
 
 // Decompression routine
-extern STATUS decompress(const QByteArray & compressed, UINT8 & algorithm, QByteArray & decompressed, QByteArray & efiDecompressed);
+extern STATUS decompress(const ByteArray & compressed, UINT8 & algorithm, ByteArray & decompressed, ByteArray & efiDecompressed);
 
 // Compression routine
-//STATUS compress(const QByteArray & decompressed, QByteArray & compressed, const UINT8 & algorithm);
+//STATUS compress(const ByteArray & decompressed, ByteArray & compressed, const UINT8 & algorithm);
 
 // CRC32 calculation routine
 extern UINT32 crc32(UINT32 initial, const UINT8* buffer, UINT32 length);
