@@ -83,7 +83,7 @@ int TreeItem::row() const
 {
     if (parentItem) {
         std::list<TreeItem*>::const_iterator iter = parentItem->childItems.cbegin();
-        for (int i = 0; i < parentItem->childItems.size(); ++i, ++iter) {
+        for (int i = 0; i < (int)parentItem->childItems.size(); ++i, ++iter) {
             if (const_cast<TreeItem*>(this) == *iter)
                 return i;
         }

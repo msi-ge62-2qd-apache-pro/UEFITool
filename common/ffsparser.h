@@ -103,7 +103,7 @@ private:
     STATUS addMemoryAddressesRecursive(const ModelIndex & index, const UINT32 diff);
 
     // Message helper
-    void msg(const ModelIndex &index, const char* fmt, ...);
+    void msg(const ModelIndex &index, const CBString & message);
 };
 
 #endif

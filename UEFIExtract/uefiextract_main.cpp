@@ -10,44 +10,29 @@ THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
 WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 */
-#include <QCoreApplication>
-#include <QString>
-#include <QFileInfo>
-
 #include <iostream>
+#include <fstream>
 
 #include "../common/ffsparser.h"
 #include "uefiextract.h"
 
-int main(int argc, char *argv[])
+int wmain(int argc, wchar_t *argv[])
 {
-    QCoreApplication a(argc, argv);
-    a.setOrganizationName("CodeRush");
-    a.setOrganizationDomain("coderush.me");
-    a.setApplicationName("UEFIExtract");
-
-    if (a.arguments().length() > 32) {
+    if (argc > 32) {
         std::cout << "Too many arguments" << std::endl;
         return 1;
     }
 
-    if (a.arguments().length() > 1) {
-        QString path = a.arguments().at(1);
-        QFileInfo fileInfo(path);
-        if (!fileInfo.exists())
-            return ERR_FILE_OPEN;
-
-        QFile inputFile;
-        inputFile.setFileName(path);
-        if (!inputFile.open(QFile::ReadOnly))
-            return ERR_FILE_OPEN;
-
-        QByteArray buffer = inputFile.readAll();
+    if (argc > 1) {
+        std::ifstream inputFile;
+        inputFile.open(argv[1], std::ios::in | std::ios::binary);
+        std::vector<char> buffer(std::istreambuf_iterator<char>(inputFile),
+            (std::istreambuf_iterator<char>()));
         inputFile.close();
 
         TreeModel model;
         FfsParser ffsParser(&model);
-        STATUS result = ffsParser.parse(ByteArray(buffer.constData(), buffer.size()));
+        STATUS result = ffsParser.parse(buffer);
         if (result)
             return result;
 
@@ -58,23 +43,27 @@ int main(int argc, char *argv[])
 
         UEFIExtract uefiextract(&model);
 
-        if (a.arguments().length() == 2) {
-            return (uefiextract.dump(model.index(0, 0), fileInfo.fileName().append(".dump").toLocal8Bit().constData()) != ERR_SUCCESS);
+        if (argc == 2) {
+            std::wstring path = std::wstring(L"\\\\?\\") + std::wstring(argv[0]) + L"." + std::wstring(argv[1]) + L".dump";
+            return (uefiextract.dump(model.index(0, 0), path) != ERR_SUCCESS);
         }
-        else {
+        /*else {
             UINT32 returned = 0;
-            for (int i = 2; i < a.arguments().length(); i++) {
-                result = uefiextract.dump(model.index(0, 0), fileInfo.fileName().append(".dump").toLocal8Bit().constData(), a.arguments().at(i).toLocal8Bit().constData());
+            path += ".dump";
+            for (int i = 2; i < argc; i++) {
+                result = uefiextract.dump(model.index(0, 0), path, argv[i]);
                 if (result)
                     returned |= (1 << (i - 1));
             }
             return returned;
-        }
+        }*/
     }
     else {
-        std::cout << "UEFIExtract 0.10.8" << std::endl << std::endl
+        std::cout << "UEFIExtract 0.20.0" << std::endl << std::endl
                   << "Usage: UEFIExtract imagefile [FileGUID_1 FileGUID_2 ... FileGUID_31]" << std::endl
                   << "Return value is a bit mask where 0 at position N means that file with GUID_N was found and unpacked, 1 otherwise" << std::endl;
         return 1;
     }
+
+    return 1;
 }

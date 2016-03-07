@@ -14,6 +14,7 @@ WITHWARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 
 // Region info structure definition
 struct REGION_INFO {
@@ -33,13 +34,8 @@ FfsParser::~FfsParser()
 {
 }
 
-void FfsParser::msg(const ModelIndex &index, const char* fmt, ...)
+void FfsParser::msg(const ModelIndex &index, const CBString &message)
 {
-    CBString message;
-    va_list arglist;
-    va_start(arglist, fmt);
-    message.format(fmt, arglist);
-    va_end(arglist);
     messagesVector.push_back(std::pair<ModelIndex, CBString>(index, message));
 }
 
@@ -94,11 +90,13 @@ STATUS FfsParser::performFirstPass(const ByteArray & buffer, ModelIndex & index)
 
         // Check sanity of HeaderSize and CapsuleImageSize values
         if (capsuleHeader->HeaderSize == 0 || capsuleHeader->HeaderSize > (UINT32)buffer.size() || capsuleHeader->HeaderSize > capsuleHeader->CapsuleImageSize) {
-            msg(ModelIndex(), "performFirstPass: UEFI capsule header size of %Xh (%d) bytes is invalid", capsuleHeader->HeaderSize, capsuleHeader->HeaderSize);
+            CBString message; message.format("performFirstPass: UEFI capsule header size of %Xh (%d) bytes is invalid", capsuleHeader->HeaderSize, capsuleHeader->HeaderSize);
+            msg(ModelIndex(), message);
             return ERR_INVALID_CAPSULE;
         }
         if (capsuleHeader->CapsuleImageSize == 0 || capsuleHeader->CapsuleImageSize > (UINT32)buffer.size()) {
-            msg(ModelIndex(), "performFirstPass: UEFI capsule image size of %Xh (%d) bytes is invalid", capsuleHeader->CapsuleImageSize, capsuleHeader->CapsuleImageSize);
+            CBString message; message.format("performFirstPass: UEFI capsule image size of %Xh (%d) bytes is invalid", capsuleHeader->CapsuleImageSize, capsuleHeader->CapsuleImageSize);
+            msg(ModelIndex(), message);
             return ERR_INVALID_CAPSULE;
         }
 
@@ -127,11 +125,13 @@ STATUS FfsParser::performFirstPass(const ByteArray & buffer, ModelIndex & index)
 
         // Check sanity of HeaderSize and FullSize values
         if (capsuleHeader->HeaderSize == 0 || capsuleHeader->HeaderSize > (UINT32)buffer.size() || capsuleHeader->HeaderSize > capsuleHeader->FullSize) {
-            msg(ModelIndex(), "performFirstPass: Toshiba capsule header size of %Xh (%d) bytes is invalid", capsuleHeader->HeaderSize,capsuleHeader->HeaderSize);
+            CBString message; message.format("performFirstPass: Toshiba capsule header size of %Xh (%d) bytes is invalid", capsuleHeader->HeaderSize, capsuleHeader->HeaderSize);
+            msg(ModelIndex(), message);
             return ERR_INVALID_CAPSULE;
         }
         if (capsuleHeader->FullSize == 0 || capsuleHeader->FullSize > (UINT32)buffer.size()) {
-            msg(ModelIndex(), "performFirstPass: Toshiba capsule full size of %Xh (%d) bytes is invalid", capsuleHeader->FullSize, capsuleHeader->FullSize);
+            CBString message; message.format("performFirstPass: Toshiba capsule full size of %Xh (%d) bytes is invalid", capsuleHeader->FullSize, capsuleHeader->FullSize);
+            msg(ModelIndex(), message);
             return ERR_INVALID_CAPSULE;
         }
 
@@ -167,11 +167,15 @@ STATUS FfsParser::performFirstPass(const ByteArray & buffer, ModelIndex & index)
 
         // Check sanity of RomImageOffset and CapsuleImageSize values
         if (capsuleHeader->RomImageOffset == 0 || capsuleHeader->RomImageOffset > (UINT32)buffer.size() || capsuleHeader->RomImageOffset > capsuleHeader->CapsuleHeader.CapsuleImageSize) {
-            msg(ModelIndex(), "performFirstPass: AMI capsule image offset of %Xh (%d) bytes is invalid", capsuleHeader->RomImageOffset, capsuleHeader->RomImageOffset);
+            CBString message; message.format("performFirstPass: AMI capsule image offset of %Xh (%d) bytes is invalid", capsuleHeader->RomImageOffset, capsuleHeader->RomImageOffset);
+            msg(ModelIndex(), message);
             return ERR_INVALID_CAPSULE;
         }
         if (capsuleHeader->CapsuleHeader.CapsuleImageSize == 0 || capsuleHeader->CapsuleHeader.CapsuleImageSize > (UINT32)buffer.size()) {
-            msg(ModelIndex(), "performFirstPass: AMI capsule image size of %Xh (%d) bytes is invalid", capsuleHeader->CapsuleHeader.CapsuleImageSize,capsuleHeader->CapsuleHeader.CapsuleImageSize);
+            CBString message; message.format("performFirstPass: AMI capsule image size of %Xh (%d) bytes is invalid", 
+                capsuleHeader->CapsuleHeader.CapsuleImageSize, 
+                capsuleHeader->CapsuleHeader.CapsuleImageSize);
+            msg(ModelIndex(), message);
             return ERR_INVALID_CAPSULE;
         }
 
@@ -228,7 +232,7 @@ STATUS FfsParser::performFirstPass(const ByteArray & buffer, ModelIndex & index)
     pdata.offset = capsuleHeaderSize;
 
     // Add tree item
-    ModelIndex biosIndex = model->addItem(Types::Image, Subtypes::UefiImage, name, CBString(), info, ByteArray(), flashImage, TRUE, parsingDataToByteArray(pdata), index);
+    ModelIndex biosIndex = model->addItem(Types::Image, Subtypes::UefiImage, name, CBString(), info, ByteArray(), flashImage, true, parsingDataToByteArray(pdata), index);
 
     // Parse the image
     result = parseRawArea(flashImage, biosIndex);
@@ -263,16 +267,19 @@ STATUS FfsParser::parseIntelImage(const ByteArray & intelImage, const UINT32 par
     if (descriptorMap->MasterBase > FLASH_DESCRIPTOR_MAX_BASE
         || descriptorMap->MasterBase == descriptorMap->RegionBase
         || descriptorMap->MasterBase == descriptorMap->ComponentBase) {
-        msg(ModelIndex(), "parseIntelImage: invalid descriptor master base %02Xh", descriptorMap->MasterBase);
+        CBString message; message.format("parseIntelImage: invalid descriptor master base %02Xh", descriptorMap->MasterBase);
+        msg(ModelIndex(), message);
         return ERR_INVALID_FLASH_DESCRIPTOR;
     }
     if (descriptorMap->RegionBase > FLASH_DESCRIPTOR_MAX_BASE
         || descriptorMap->RegionBase == descriptorMap->ComponentBase) {
-        msg(ModelIndex(), "parseIntelImage: invalid descriptor region base %02Xh", descriptorMap->RegionBase);
+        CBString message; message.format("parseIntelImage: invalid descriptor region base %02Xh", descriptorMap->RegionBase);
+        msg(ModelIndex(), message);
         return ERR_INVALID_FLASH_DESCRIPTOR;
     }
     if (descriptorMap->ComponentBase > FLASH_DESCRIPTOR_MAX_BASE) {
-        msg(ModelIndex(), "parseIntelImage: invalid descriptor component base %02Xh", descriptorMap->ComponentBase);
+        CBString message; message.format("parseIntelImage: invalid descriptor component base %02Xh", descriptorMap->ComponentBase);
+        msg(ModelIndex(), message);
         return ERR_INVALID_FLASH_DESCRIPTOR;
     }
 
@@ -286,7 +293,8 @@ STATUS FfsParser::parseIntelImage(const ByteArray & intelImage, const UINT32 par
     else if (componentSection->FlashParameters.ReadClockFrequency == FLASH_FREQUENCY_17MHZ) // Skylake+ descriptor
         descriptorVersion = 2;
     else {
-        msg(ModelIndex(), "parseIntelImage: unknown descriptor version with ReadClockFrequency %Xh", componentSection->FlashParameters.ReadClockFrequency);
+        CBString message; message.format("parseIntelImage: unknown descriptor version with ReadClockFrequency %Xh", componentSection->FlashParameters.ReadClockFrequency);
+        msg(ModelIndex(), message);
         return ERR_INVALID_FLASH_DESCRIPTOR;
     }
 
@@ -434,7 +442,7 @@ STATUS FfsParser::parseIntelImage(const ByteArray & intelImage, const UINT32 par
     REGION_INFO region;
     // Check intersection with the descriptor
     if (regions.front().offset < FLASH_DESCRIPTOR_SIZE) {
-        msg(index, "parseIntelImage: %s region has intersection with flash descriptor", (const char *)itemSubtypeToString(Types::Region, regions.front().type));
+        msg(index, "parseIntelImage: " + itemSubtypeToString(Types::Region, regions.front().type) + " region has intersection with flash descriptor");
         return ERR_INVALID_FLASH_DESCRIPTOR;
     }
     // Check for padding between descriptor and the first region 
@@ -450,16 +458,13 @@ STATUS FfsParser::parseIntelImage(const ByteArray & intelImage, const UINT32 par
         UINT32 previousRegionEnd = regions[i-1].offset + regions[i-1].length;
         // Check that current region is fully present in the image
         if (regions[i].offset + regions[i].length > (UINT32)intelImage.size()) {
-            msg(index, "parseIntelImage: %s region is located outside of opened image, if your system uses dual-chip storage, please append another part to the opened image",
-                (const char *)itemSubtypeToString(Types::Region, regions[i].type));
+            msg(index, "parseIntelImage: " + itemSubtypeToString(Types::Region, regions[i].type) + " region is located outside of opened image, if your system uses dual-chip storage, please append another part to the opened image");
             return ERR_TRUNCATED_IMAGE;
         }
 
         // Check for intersection with previous region
         if (regions[i].offset < previousRegionEnd) {
-            msg(index, "parseIntelImage: %s region has intersection with %s region",
-                (const char *)itemSubtypeToString(Types::Region, regions[i].type),
-                (const char *)itemSubtypeToString(Types::Region, regions[i - 1].type));
+            msg(index, "parseIntelImage: " + itemSubtypeToString(Types::Region, regions[i].type) + " region has intersection with " + itemSubtypeToString(Types::Region, regions[i - 1].type) + " region");
             return ERR_INVALID_FLASH_DESCRIPTOR;
         }
         // Check for padding between current and previous regions
@@ -499,7 +504,7 @@ STATUS FfsParser::parseIntelImage(const ByteArray & intelImage, const UINT32 par
     pdata.offset = parentOffset;
 
     // Add Intel image tree item
-    index = model->addItem(Types::Image, Subtypes::IntelImage, name, CBString(), info, ByteArray(), intelImage, TRUE, parsingDataToByteArray(pdata), parent);
+    index = model->addItem(Types::Image, Subtypes::IntelImage, name, CBString(), info, ByteArray(), intelImage, true, parsingDataToByteArray(pdata), parent);
 
     // Descriptor
     // Get descriptor info
@@ -586,7 +591,7 @@ STATUS FfsParser::parseIntelImage(const ByteArray & intelImage, const UINT32 par
     }
 
     // Add descriptor tree item
-    ModelIndex regionIndex = model->addItem(Types::Region, Subtypes::DescriptorRegion, name, CBString(), info, ByteArray(), body, TRUE, parsingDataToByteArray(pdata), index);
+    ModelIndex regionIndex = model->addItem(Types::Region, Subtypes::DescriptorRegion, name, CBString(), info, ByteArray(), body, true, parsingDataToByteArray(pdata), index);
     
     // Parse regions
     UINT8 result = ERR_SUCCESS;
@@ -630,7 +635,7 @@ STATUS FfsParser::parseIntelImage(const ByteArray & intelImage, const UINT32 par
             pdata.offset = parentOffset + region.offset;
 
             // Add tree item
-            regionIndex = model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
+            regionIndex = model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, true, parsingDataToByteArray(pdata), index);
             result = ERR_SUCCESS;
             } break;
         default:
@@ -676,7 +681,7 @@ STATUS FfsParser::parseGbeRegion(const ByteArray & gbe, const UINT32 parentOffse
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, Subtypes::GbeRegion, name, CBString(), info, ByteArray(), gbe, TRUE, parsingDataToByteArray(pdata), parent);
+    index = model->addItem(Types::Region, Subtypes::GbeRegion, name, CBString(), info, ByteArray(), gbe, true, parsingDataToByteArray(pdata), parent);
 
     return ERR_SUCCESS;
 }
@@ -730,7 +735,7 @@ STATUS FfsParser::parseMeRegion(const ByteArray & me, const UINT32 parentOffset,
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, Subtypes::MeRegion, name, CBString(), info, ByteArray(), me, TRUE, parsingDataToByteArray(pdata), parent);
+    index = model->addItem(Types::Region, Subtypes::MeRegion, name, CBString(), info, ByteArray(), me, true, parsingDataToByteArray(pdata), parent);
 
     // Show messages
     if (emptyRegion) {
@@ -760,7 +765,7 @@ STATUS FfsParser::parsePdrRegion(const ByteArray & pdr, const UINT32 parentOffse
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, Subtypes::PdrRegion, name, CBString(), info, ByteArray(), pdr, TRUE, parsingDataToByteArray(pdata), parent);
+    index = model->addItem(Types::Region, Subtypes::PdrRegion, name, CBString(), info, ByteArray(), pdr, true, parsingDataToByteArray(pdata), parent);
 
     // Parse PDR region as BIOS space
     UINT8 result = parseRawArea(pdr, index);
@@ -780,14 +785,14 @@ STATUS FfsParser::parseGeneralRegion(const UINT8 subtype, const ByteArray & regi
     PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Get info
-    CBString name; name.format("%s region", (const char *)itemSubtypeToString(Types::Region, subtype));
+    CBString name = itemSubtypeToString(Types::Region, subtype) + " region";
     CBString info; info.format("Full size: %Xh (%d)", region.size(), region.size());
 
     // Construct parsing data
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, subtype, name, CBString(), info, ByteArray(), region, TRUE, parsingDataToByteArray(pdata), parent);
+    index = model->addItem(Types::Region, subtype, name, CBString(), info, ByteArray(), region, true, parsingDataToByteArray(pdata), parent);
 
     return ERR_SUCCESS;
 }
@@ -809,7 +814,7 @@ STATUS FfsParser::parseBiosRegion(const ByteArray & bios, const UINT32 parentOff
     pdata.offset += parentOffset;
 
     // Add tree item
-    index = model->addItem(Types::Region, Subtypes::BiosRegion, name, CBString(), info, ByteArray(), bios, TRUE, parsingDataToByteArray(pdata), parent);
+    index = model->addItem(Types::Region, Subtypes::BiosRegion, name, CBString(), info, ByteArray(), bios, true, parsingDataToByteArray(pdata), parent);
 
     return parseRawArea(bios, index);
 }
@@ -855,7 +860,7 @@ STATUS FfsParser::parseRawArea(const ByteArray & data, const ModelIndex & index)
         pdata.offset = offset;
 
         // Add tree item
-        model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
+        model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, true, parsingDataToByteArray(pdata), index);
     }
 
     // Search for and parse all volumes
@@ -878,7 +883,7 @@ STATUS FfsParser::parseRawArea(const ByteArray & data, const ModelIndex & index)
             pdata.offset = offset + paddingOffset;
 
             // Add tree item
-            model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
+            model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, true, parsingDataToByteArray(pdata), index);
         }
 
         // Get volume size
@@ -886,7 +891,7 @@ STATUS FfsParser::parseRawArea(const ByteArray & data, const ModelIndex & index)
         UINT32 bmVolumeSize = 0;
         result = getVolumeSize(data, volumeOffset, volumeSize, bmVolumeSize);
         if (result) {
-            msg(index, "parseRawArea: getVolumeSize failed with error \"%s\"", (const char *)errorCodeToString(result));
+            msg(index, "parseRawArea: getVolumeSize failed with error " + errorCodeToString(result));
             return result;
         }
         
@@ -909,7 +914,7 @@ STATUS FfsParser::parseRawArea(const ByteArray & data, const ModelIndex & index)
             pdata.offset = offset + volumeOffset;
 
             // Add tree item
-            ModelIndex paddingIndex = model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
+            ModelIndex paddingIndex = model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, true, parsingDataToByteArray(pdata), index);
             msg(paddingIndex, "parseRawArea: one of volumes inside overlaps the end of data");
 
             // Update variables
@@ -922,15 +927,14 @@ STATUS FfsParser::parseRawArea(const ByteArray & data, const ModelIndex & index)
         ModelIndex volumeIndex;
         result = parseVolumeHeader(volume, model->header(index).size() + volumeOffset, index, volumeIndex);
         if (result)
-            msg(index, "parseRawArea: volume header parsing failed with error \"%s\"", (const char *)errorCodeToString(result));
-        else {
-            // Show messages
-            if (volumeSize != bmVolumeSize)
-                msg(volumeIndex, "parseBiosBody: volume size stored in header %Xh (%d) differs from calculated using block map %Xh (%d)",
-                volumeSize, volumeSize,
-                bmVolumeSize, bmVolumeSize);
+            msg(index, "parseRawArea: volume header parsing failed with error " + errorCodeToString(result));
+        else if (volumeSize != bmVolumeSize) { // Show message if volume sizes are different
+                CBString message; message.format("parseBiosBody: volume size stored in header %Xh (%d) differs from calculated using block map %Xh (%d)",
+                    volumeSize, volumeSize,
+                    bmVolumeSize, bmVolumeSize);
+                msg(volumeIndex, message);
         }
-
+        
         // Go to next volume
         prevVolumeOffset = volumeOffset;
         prevVolumeSize = volumeSize;
@@ -950,7 +954,7 @@ STATUS FfsParser::parseRawArea(const ByteArray & data, const ModelIndex & index)
         pdata.offset = offset + headerSize + volumeOffset;
 
         // Add tree item
-        model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
+        model->addItem(Types::Padding, getPaddingType(padding), name, CBString(), info, ByteArray(), padding, true, parsingDataToByteArray(pdata), index);
     }
 
     // Parse bodies
@@ -981,8 +985,9 @@ STATUS FfsParser::parseVolumeHeader(const ByteArray & volume, const UINT32 paren
     PARSING_DATA pdata = parsingDataFromModelIndex(parent);
 
     // Check that there is space for the volume header
-        if ((UINT32)volume.size() < sizeof(EFI_FIRMWARE_VOLUME_HEADER)) {
-        msg(ModelIndex(), "parseVolumeHeader: input volume size %Xh (%d) is smaller than volume header size 40h (64)", volume.size(), volume.size());
+    if ((UINT32)volume.size() < sizeof(EFI_FIRMWARE_VOLUME_HEADER)) {
+        CBString message; message.format("parseVolumeHeader: input volume size %Xh (%d) is smaller than volume header size 40h (64)", volume.size(), volume.size());
+        msg(ModelIndex(), message);
         return ERR_INVALID_VOLUME;
     }
 
@@ -1144,7 +1149,7 @@ STATUS FfsParser::parseVolumeHeader(const ByteArray & volume, const UINT32 paren
     pdata.offset += parentOffset;
     pdata.emptyByte = emptyByte;
     pdata.ffsVersion = ffsVersion;
-    pdata.volume.hasExtendedHeader = hasExtendedHeader ? TRUE : FALSE;
+    pdata.volume.hasExtendedHeader = hasExtendedHeader ? true : false;
     pdata.volume.extendedHeaderGuid = extendedHeaderGuid;
     pdata.volume.alignment = alignment;
     pdata.volume.revision = volumeHeader->Revision;
@@ -1167,11 +1172,11 @@ STATUS FfsParser::parseVolumeHeader(const ByteArray & volume, const UINT32 paren
         else if (ffsVersion == 3)
             subtype = Subtypes::Ffs3Volume;
     }
-    index = model->addItem(Types::Volume, subtype, name, text, info, header, body, TRUE, parsingDataToByteArray(pdata), parent);
+    index = model->addItem(Types::Volume, subtype, name, text, info, header, body, true, parsingDataToByteArray(pdata), parent);
 
     // Show messages
     if (isUnknown)
-        msg(index, "parseVolumeHeader: unknown file system %s", (const char *)guidToString(volumeHeader->FileSystemGuid));
+        msg(index, "parseVolumeHeader: unknown file system " + guidToString(volumeHeader->FileSystemGuid));
     if (msgInvalidChecksum)
         msg(index, "parseVolumeHeader: volume header checksum is invalid");
     if (msgAlignmentBitsSet)
@@ -1179,7 +1184,7 @@ STATUS FfsParser::parseVolumeHeader(const ByteArray & volume, const UINT32 paren
     if (msgUnaligned)
         msg(index, "parseVolumeHeader: unaligned volume");
     if (msgUnknownRevision)
-        msg(index, "parseVolumeHeader: unknown volume revision %d", volumeHeader->Revision);
+        msg(index, "parseVolumeHeader: unknown volume revision");
 
     return ERR_SUCCESS;
 }
@@ -1194,21 +1199,24 @@ STATUS FfsParser::findNextVolume(const ModelIndex & index, const ByteArray & bio
     for (; nextIndex > 0; nextIndex = bios.indexOf(EFI_FV_SIGNATURE, nextIndex + 1)) {
         const EFI_FIRMWARE_VOLUME_HEADER* volumeHeader = (const EFI_FIRMWARE_VOLUME_HEADER*)(bios.constData() + nextIndex - EFI_FV_SIGNATURE_OFFSET);
         if (volumeHeader->FvLength < sizeof(EFI_FIRMWARE_VOLUME_HEADER) + 2 * sizeof(EFI_FV_BLOCK_MAP_ENTRY) || volumeHeader->FvLength >= 0xFFFFFFFFUL) {
-            msg(index, "findNextVolume: volume candidate at offset %Xh skipped, has invalid FvLength %Xh", 
-                parentOffset + (nextIndex - EFI_FV_SIGNATURE_OFFSET),
+            CBString message; message.format("findNextVolume: volume candidate at offset %Xh skipped, has invalid FvLength %Xh",
+                parentOffset + (nextIndex - EFI_FV_SIGNATURE_OFFSET), 
                 volumeHeader->FvLength);
+            msg(index, message);
             continue;
         }
         if (volumeHeader->Reserved != 0xFF && volumeHeader->Reserved != 0x00) {
-            msg(index, "findNextVolume: volume candidate at offset %Xh skipped, has invalid Reserved byte value %d", 
-                parentOffset + (nextIndex - EFI_FV_SIGNATURE_OFFSET), 
+            CBString message; message.format("findNextVolume: volume candidate at offset %Xh skipped, has invalid Reserved byte value %d",
+                parentOffset + (nextIndex - EFI_FV_SIGNATURE_OFFSET),
                 volumeHeader->Reserved);
+            msg(index, message);
             continue;
         }
         if (volumeHeader->Revision != 1 && volumeHeader->Revision != 2) {
-            msg(index, "findNextVolume: volume candidate at offset %Xh skipped, has invalid Revision byte value %d",
+            CBString message; message.format("findNextVolume: volume candidate at offset %Xh skipped, has invalid Revision byte value %d",
                 parentOffset + (nextIndex - EFI_FV_SIGNATURE_OFFSET),
                 volumeHeader->Revision);
+            msg(index, message);
             continue;
         }
         // All checks passed, volume found
@@ -1246,7 +1254,7 @@ STATUS FfsParser::getVolumeSize(const ByteArray & bios, UINT32 volumeOffset, UIN
         entry += 1;
     }
 
-    volumeSize = volumeHeader->FvLength;
+    volumeSize = (UINT32)volumeHeader->FvLength;
     bmVolumeSize = calcVolumeSize;
 
     if (volumeSize == 0)
@@ -1290,7 +1298,7 @@ STATUS FfsParser::parseVolumeNonUefiData(const ByteArray & data, const UINT32 pa
     CBString info; info.format("Full size: %Xh (%d)", padding.size(), padding.size());
 
     // Add padding tree item
-    ModelIndex paddingIndex = model->addItem(Types::Padding, Subtypes::DataPadding, "Non-UEFI data", CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
+    ModelIndex paddingIndex = model->addItem(Types::Padding, Subtypes::DataPadding, "Non-UEFI data", CBString(), info, ByteArray(), padding, true, parsingDataToByteArray(pdata), index);
     msg(paddingIndex, "parseVolumeNonUefiData: non-UEFI data found in volume's free space");
 
     if (vtfIndex >= 0) {
@@ -1305,7 +1313,7 @@ STATUS FfsParser::parseVolumeNonUefiData(const ByteArray & data, const UINT32 pa
         ModelIndex fileIndex;
         STATUS result = parseFileHeader(vtf, parentOffset + vtfIndex, index, fileIndex);
         if (result) {
-            msg(index, "parseVolumeNonUefiData: VTF file header parsing failed with error \"%s\"", (const char *)errorCodeToString(result));
+            msg(index, "parseVolumeNonUefiData: VTF file header parsing failed with error " + errorCodeToString(result));
             
             // Add the rest as non-UEFI data too
             pdata.offset += vtfIndex;
@@ -1313,7 +1321,7 @@ STATUS FfsParser::parseVolumeNonUefiData(const ByteArray & data, const UINT32 pa
             info.format("Full size: %Xh (%d)", vtf.size(), vtf.size());
 
             // Add padding tree item
-            ModelIndex paddingIndex = model->addItem(Types::Padding, Subtypes::DataPadding, "Non-UEFI data", CBString(), info, ByteArray(), vtf, TRUE, parsingDataToByteArray(pdata), index);
+            ModelIndex paddingIndex = model->addItem(Types::Padding, Subtypes::DataPadding, "Non-UEFI data", CBString(), info, ByteArray(), vtf, true, parsingDataToByteArray(pdata), index);
             msg(paddingIndex, "parseVolumeNonUefiData: non-UEFI data found in volume's free space");
         }
     }
@@ -1377,7 +1385,7 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
                         CBString info; info.format("Full size: %Xh (%d)", free.size(), free.size());
 
                         // Add free space item
-                        model->addItem(Types::FreeSpace, 0, CBString("Volume free space"), CBString(), info, ByteArray(), free, FALSE, parsingDataToByteArray(pdata), index);
+                        model->addItem(Types::FreeSpace, 0, CBString("Volume free space"), CBString(), info, ByteArray(), free, false, parsingDataToByteArray(pdata), index);
                     }
 
                     // Parse non-UEFI data 
@@ -1391,7 +1399,7 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
                     CBString info; info.format("Full size: %Xh (%d)", freeSpace.size(), freeSpace.size());
 
                     // Add free space item
-                    model->addItem(Types::FreeSpace, 0, CBString("Volume free space"), CBString(), info, ByteArray(), freeSpace, FALSE, parsingDataToByteArray(pdata), index);
+                    model->addItem(Types::FreeSpace, 0, CBString("Volume free space"), CBString(), info, ByteArray(), freeSpace, false, parsingDataToByteArray(pdata), index);
                 }
                 break; // Exit from parsing loop
             }
@@ -1414,7 +1422,7 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
         ModelIndex fileIndex;
         STATUS result = parseFileHeader(file, volumeHeaderSize + fileOffset, index, fileIndex);
         if (result)
-            msg(index, "parseVolumeBody: file header parsing failed with error \"%s\"", (const char *)errorCodeToString(result));
+            msg(index, "parseVolumeBody: file header parsing failed with error " + errorCodeToString(result));
 
         // Move to next file
         fileOffset += fileSize;
@@ -1437,7 +1445,7 @@ STATUS FfsParser::parseVolumeBody(const ModelIndex & index)
             // Check GUIDs for being equal
             ByteArray anotherGuid = model->header(another).left(sizeof(EFI_GUID));
             if (currentGuid == anotherGuid) {
-                msg(another, "parseVolumeBody: file with duplicate GUID %s", (const char *)guidToString(*(const EFI_GUID*)anotherGuid.constData()));
+                msg(another, "parseVolumeBody: file with duplicate GUID " + guidToString(*(const EFI_GUID*)anotherGuid.constData()));
             }
         }
     }
@@ -1573,7 +1581,8 @@ STATUS FfsParser::parseFileHeader(const ByteArray & file, const UINT32 parentOff
         hasTail = true;
 
         //Check file tail;
-        tail = *(UINT16*)body.right(sizeof(UINT16)).constData();
+        ByteArray t = body.right(sizeof(UINT16));
+        tail = *(UINT16*)t.constData();
         if (fileHeader->IntegrityCheck.TailReference != (UINT16)~tail)
             msgInvalidTailValue = true;
 
@@ -1615,7 +1624,7 @@ STATUS FfsParser::parseFileHeader(const ByteArray & file, const UINT32 parentOff
     // Construct parsing data
     bool fixed = fileHeader->Attributes & FFS_ATTRIB_FIXED;
     pdata.offset += parentOffset;
-    pdata.file.hasTail = hasTail ? TRUE : FALSE;
+    pdata.file.hasTail = hasTail ? true : false;
     pdata.file.tail = tail;
 
     // Add tree item
@@ -1629,16 +1638,20 @@ STATUS FfsParser::parseFileHeader(const ByteArray & file, const UINT32 parentOff
     // Show messages
     if (msgUnalignedFile)
         msg(index, "parseFileHeader: unaligned file");
-    if (msgFileAlignmentIsGreaterThanVolumes)
-        msg(index, "parseFileHeader: file alignment %Xh is greater than parent volume alignment %Xh", alignment, pdata.volume.alignment);
+    if (msgFileAlignmentIsGreaterThanVolumes) {
+        CBString message; message.format("parseFileHeader: file alignment %Xh is greater than parent volume alignment %Xh", alignment, pdata.volume.alignment);
+        msg(index, message);
+    }
     if (msgInvalidHeaderChecksum)
         msg(index, "parseFileHeader: invalid header checksum");
     if (msgInvalidDataChecksum)
         msg(index, "parseFileHeader: invalid data checksum");
     if (msgInvalidTailValue)
         msg(index, "parseFileHeader: invalid tail value");
-    if (msgUnknownType)
-        msg(index, "parseFileHeader: unknown file type %02Xh", fileHeader->Type);
+    if (msgUnknownType) {
+        CBString message; message.format("parseFileHeader: unknown file type %02Xh", fileHeader->Type);
+        msg(index, message);
+    }
 
     return ERR_SUCCESS;
 }
@@ -1725,7 +1738,7 @@ STATUS FfsParser::parsePadFileBody(const ModelIndex & index)
         pdata.offset += model->header(index).size();
 
         // Add tree item
-        model->addItem(Types::FreeSpace, 0, CBString("Free space"), CBString(), info, ByteArray(), free, FALSE, parsingDataToByteArray(pdata), index);
+        model->addItem(Types::FreeSpace, 0, CBString("Free space"), CBString(), info, ByteArray(), free, false, parsingDataToByteArray(pdata), index);
     }
     else 
         i = 0;
@@ -1740,7 +1753,7 @@ STATUS FfsParser::parsePadFileBody(const ModelIndex & index)
     pdata.offset += i;
 
     // Add tree item
-    ModelIndex dataIndex = model->addItem(Types::Padding, Subtypes::DataPadding, CBString("Non-UEFI data"), CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
+    ModelIndex dataIndex = model->addItem(Types::Padding, Subtypes::DataPadding, CBString("Non-UEFI data"), CBString(), info, ByteArray(), padding, true, parsingDataToByteArray(pdata), index);
 
     // Show message
     msg(dataIndex, "parsePadFileBody: non-UEFI data found in pad-file");
@@ -1761,8 +1774,9 @@ STATUS FfsParser::parseSections(const ByteArray & sections, const ModelIndex & i
     PARSING_DATA pdata = parsingDataFromModelIndex(index);
 
     // Search for and parse all sections
+    ByteArray header = model->header(index);
     UINT32 bodySize = sections.size();
-    UINT32 headerSize = model->header(index).size();
+    UINT32 headerSize = header.size();
     UINT32 sectionOffset = 0;
 
     STATUS result = ERR_SUCCESS;
@@ -1783,7 +1797,7 @@ STATUS FfsParser::parseSections(const ByteArray & sections, const ModelIndex & i
             // Final parsing
             if (!preparse) {
                 // Add tree item
-                ModelIndex dataIndex = model->addItem(Types::Padding, Subtypes::DataPadding, CBString("Non-UEFI data"), CBString(), info, ByteArray(), padding, TRUE, parsingDataToByteArray(pdata), index);
+                ModelIndex dataIndex = model->addItem(Types::Padding, Subtypes::DataPadding, CBString("Non-UEFI data"), CBString(), info, ByteArray(), padding, true, parsingDataToByteArray(pdata), index);
 
                 // Show message
                 msg(dataIndex, "parseSections: non-UEFI data found in sections area");
@@ -1800,7 +1814,7 @@ STATUS FfsParser::parseSections(const ByteArray & sections, const ModelIndex & i
         result = parseSectionHeader(sections.mid(sectionOffset, sectionSize), headerSize + sectionOffset, index, sectionIndex, preparse);
         if (result) {
             if (!preparse)
-                msg(index, "parseSections: section header parsing failed with error \"%s\"", (const char *)errorCodeToString(result));
+                msg(index, "parseSections: section header parsing failed with error " + errorCodeToString(result));
             else
                 return ERR_INVALID_SECTION;
         }
@@ -1857,7 +1871,8 @@ STATUS FfsParser::parseSectionHeader(const ByteArray & section, const UINT32 par
     // Unknown
     default: 
         STATUS result = parseCommonSectionHeader(section, parentOffset, parent, index, preparse);
-        msg(index, "parseSectionHeader: section with unknown type %02Xh", sectionHeader->Type);
+        CBString message; message.format("parseSectionHeader: section with unknown type %02Xh", sectionHeader->Type);
+        msg(index, message);
         return result;
     }
 }
@@ -1893,7 +1908,7 @@ STATUS FfsParser::parseCommonSectionHeader(const ByteArray & section, const UINT
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, false, parsingDataToByteArray(pdata), parent);
     } 
     return ERR_SUCCESS;
 }
@@ -1942,7 +1957,7 @@ STATUS FfsParser::parseCompressedSectionHeader(const ByteArray & section, const 
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, false, parsingDataToByteArray(pdata), parent);
     }
     return ERR_SUCCESS;
 }
@@ -2076,7 +2091,7 @@ STATUS FfsParser::parseGuidedSectionHeader(const ByteArray & section, const UINT
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, false, parsingDataToByteArray(pdata), parent);
 
         // Show messages
         if (msgSignedSectionFound)
@@ -2138,7 +2153,7 @@ STATUS FfsParser::parseFreeformGuidedSectionHeader(const ByteArray & section, co
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, false, parsingDataToByteArray(pdata), parent);
 
         // Rename section
         model->setName(index, guidToString(guid));
@@ -2185,7 +2200,7 @@ STATUS FfsParser::parseVersionSectionHeader(const ByteArray & section, const UIN
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, false, parsingDataToByteArray(pdata), parent);
     }
     return ERR_SUCCESS;
 }
@@ -2216,8 +2231,8 @@ STATUS FfsParser::parsePostcodeSectionHeader(const ByteArray & section, const UI
     ByteArray body = section.mid(headerSize);
 
     // Get info
-    CBString name = sectionTypeToString(sectionHeader->Type) + CBString(" section");
-    CBString info; info.format("Type: %02Xh\nFull size: %Xh (%d)\nHeader size: %Xh (%d)\nBody size: %Xh (%d)\nPostcode: %X",
+    CBString name = sectionTypeToString(sectionHeader->Type) + " section";
+    CBString info; info.format("Type: %02Xh\nFull size: %Xh (%d)\nHeader size: %Xh (%d)\nBody size: %Xh (%d)\nPostcode: %Xh",
         postcodeHeader->Type,
         section.size(), section.size(),
         header.size(), header.size(),
@@ -2229,7 +2244,7 @@ STATUS FfsParser::parsePostcodeSectionHeader(const ByteArray & section, const UI
 
     // Add tree item
     if (!preparse) {
-        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, FALSE, parsingDataToByteArray(pdata), parent);
+        index = model->addItem(Types::Section, sectionHeader->Type, name, CBString(), info, header, body, false, parsingDataToByteArray(pdata), parent);
     }
     return ERR_SUCCESS;
 }
@@ -2240,10 +2255,13 @@ STATUS FfsParser::parseSectionBody(const ModelIndex & index)
     // Sanity check
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;
-    if ((UINT32)model->header(index).size() < sizeof(EFI_COMMON_SECTION_HEADER))
+
+    ByteArray header = model->header(index);
+    if (header.size() < sizeof(EFI_COMMON_SECTION_HEADER))
         return ERR_INVALID_SECTION;
 
-    const EFI_COMMON_SECTION_HEADER* sectionHeader = (const EFI_COMMON_SECTION_HEADER*)(model->header(index).constData());
+    
+    const EFI_COMMON_SECTION_HEADER* sectionHeader = (const EFI_COMMON_SECTION_HEADER*)(header.constData());
 
     switch (sectionHeader->Type) {
     // Encapsulation
@@ -2287,15 +2305,16 @@ STATUS FfsParser::parseCompressedSectionBody(const ModelIndex & index)
     CBString info;
     STATUS result = decompress(model->body(index), algorithm, decompressed, efiDecompressed);
     if (result) {
-        msg(index, "parseCompressedSectionBody: decompression failed with error \"%s\"", (const char *)errorCodeToString(result));
+        msg(index, "parseCompressedSectionBody: decompression failed with error " + errorCodeToString(result));
         return ERR_SUCCESS;
     }
     
     // Check reported uncompressed size
     if (pdata.section.compressed.uncompressedSize != (UINT32)decompressed.size()) {
-        msg(index, "parseCompressedSectionBody: decompressed size stored in header %Xh (%d) differs from actual %Xh (%d)",
+        CBString message; message.format("parseCompressedSectionBody: decompressed size stored in header %Xh (%d) differs from actual %Xh (%d)",
             pdata.section.compressed.uncompressedSize, pdata.section.compressed.uncompressedSize,
             decompressed.size(), decompressed.size());
+        msg(index, message);
         info.format("\nActual decompressed size: %Xh (%d)", decompressed.size(), decompressed.size());
         model->addInfo(index, info);
     }
@@ -2352,7 +2371,7 @@ STATUS FfsParser::parseGuidedSectionBody(const ModelIndex & index)
         STATUS result = decompress(model->body(index), algorithm, processed, efiDecompressed);
         if (result) {
             parseCurrentSection = false;
-            msg(index, "parseGuidedSectionBody: decompression failed with error \"%s\"", (const char *)errorCodeToString(result));
+            msg(index, "parseGuidedSectionBody: decompression failed with error " + errorCodeToString(result));
             return ERR_SUCCESS;
         }
 
@@ -2372,7 +2391,7 @@ STATUS FfsParser::parseGuidedSectionBody(const ModelIndex & index)
             }
         }
         
-        info.formata("\nCompression algorithm: %s", (const char *)compressionTypeToString(algorithm));
+        info += "\nCompression algorithm: " + compressionTypeToString(algorithm);
         info.formata("\nDecompressed size: %Xh (%d)", processed.size(), processed.size());
     }
     // LZMA compressed section
@@ -2381,7 +2400,7 @@ STATUS FfsParser::parseGuidedSectionBody(const ModelIndex & index)
         STATUS result = decompress(model->body(index), algorithm, processed, efiDecompressed);
         if (result) {
             parseCurrentSection = false;
-            msg(index, "parseGuidedSectionBody: decompression failed with error \"%s\"", (const char *)errorCodeToString(result));
+            msg(index, "parseGuidedSectionBody: decompression failed with error " + errorCodeToString(result));
             return ERR_SUCCESS;
         }
 
@@ -2415,9 +2434,16 @@ STATUS FfsParser::parseVersionSectionBody(const ModelIndex & index)
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;
 
-    // Add info, TODO: add UTF16 support
-    //CBString info; info.format("\nVersion string: %s", )
-    //model->addInfo(index, CBString().arg(CBString::fromUtf16((const ushort*))));
+    // Construct ASCII string from UCS2 one
+    // TODO: replace with actual UCS2 support
+    CBString info;
+    ByteArray body = model->body(index);
+    for (int i = 0; i < body.size() - 2; i += 2)
+        info += body[i];
+
+    // Add info
+    info = "\nVersion string: " + info;
+    model->addInfo(index, info);
 
     return ERR_SUCCESS;
 }
@@ -2432,7 +2458,7 @@ STATUS FfsParser::parseDepexSectionBody(const ModelIndex & index)
     CBString parsed;
 
     // Check data to be present
-    if (body.size() < 2) { // 2 is a minimal sane value, i.e TRUE + END
+    if (body.size() < 2) { // 2 is a minimal sane value, i.e true + END
         msg(index, "parseDepexSectionBody: DEPEX section too short");
         return ERR_DEPEX_PARSE_FAILED;
     }
@@ -2541,8 +2567,7 @@ STATUS FfsParser::parseDepexSectionBody(const ModelIndex & index)
     }
     
     // Add info
-    CBString info;
-    info.format("\nParsed expression:%s", (const char *)parsed);
+    CBString info = "\nParsed expression:" + parsed;
     model->addInfo(index, info);
 
     return ERR_SUCCESS;
@@ -2554,13 +2579,19 @@ STATUS FfsParser::parseUiSectionBody(const ModelIndex & index)
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;
 
-    //CBString text = CBString::fromUtf16((const ushort*)model->body(index).constData());
-
-    // Add info
-    // model->addInfo(index, CBString("\nText: %s").arg(text));
+    // Construct ASCII string from UCS2 one
+    // TODO: replace with actual UCS2 support
+    CBString text;
+    ByteArray body = model->body(index);
+    for (int i = 0; i < body.size() - 2; i += 2)
+        text += body[i];
 
     // Rename parent file
-    //model->setText(model->findParentOfType(index, Types::File), text);
+    model->setText(model->findParentOfType(index, Types::File), text);
+
+    // Add info
+    text = "\nText: " + text;
+    model->addInfo(index, text);
 
     return ERR_SUCCESS;
 }
@@ -2726,30 +2757,31 @@ STATUS FfsParser::parseTeImageSectionBody(const ModelIndex & index)
         return ERR_SUCCESS;
     }
 
-    CBString info;
     const EFI_IMAGE_TE_HEADER* teHeader = (const EFI_IMAGE_TE_HEADER*)body.constData();
+    UINT64 adjustedImageBase = teHeader->ImageBase + teHeader->StrippedSize - sizeof(EFI_IMAGE_TE_HEADER);
+    CBString info;
     if (teHeader->Signature != EFI_IMAGE_TE_SIGNATURE) {
         info.formata("\nSignature: %04Xh, invalid", teHeader->Signature);
         msg(index, "parseTeImageSectionBody: TE image with invalid TE signature");
     }
     else {
-        info.formata("\nSignature: %04Xh\nMachine type: %s\nNumber of sections: %d\nSubsystem: %02Xh\nStripped size: %Xh (%d)\n\
-                         Base of code: %Xh\nAddress of entry point: %Xh\nImage base: %Xh\nAdjusted image base: %Xh",
+        info.formata("\nSignature: %04Xh\nMachine type: %s\nNumber of sections: %d\nSubsystem: %02Xh\nStripped size: %Xh (%d)\n"
+            "Base of code: %Xh\nAddress of entry point: %Xh\nImage base: %Xh",
             teHeader->Signature,
             (const char *)machineTypeToString(teHeader->Machine),
             teHeader->NumberOfSections,
             teHeader->Subsystem,
-            teHeader->StrippedSize,teHeader->StrippedSize,
+            teHeader->StrippedSize, teHeader->StrippedSize,
             teHeader->BaseOfCode,
             teHeader->AddressOfEntryPoint,
-            teHeader->ImageBase,
-            teHeader->ImageBase + teHeader->StrippedSize - sizeof(EFI_IMAGE_TE_HEADER));
+            teHeader->ImageBase);
+        info.formata("\nAdjusted image base: %Xh", adjustedImageBase);
     }
 
     // Get data from parsing data
     PARSING_DATA pdata = parsingDataFromModelIndex(index);
     pdata.section.teImage.imageBase = teHeader->ImageBase;
-    pdata.section.teImage.adjustedImageBase = teHeader->ImageBase + teHeader->StrippedSize - sizeof(EFI_IMAGE_TE_HEADER);
+    pdata.section.teImage.adjustedImageBase = adjustedImageBase;
     
     // Update parsing data
     model->setParsingData(index, parsingDataToByteArray(pdata));

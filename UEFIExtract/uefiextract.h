@@ -14,6 +14,8 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #ifndef __UEFIEXTRACT_H__
 #define __UEFIEXTRACT_H__
 
+#include <string>
+
 #include "../common/basetypes.h"
 #include "../common/cbstring.h"
 #include "../common/treemodel.h"
@@ -24,10 +26,10 @@ public:
     explicit UEFIExtract(TreeModel * treeModel) : model(treeModel), dumped(false) {}
     ~UEFIExtract() {}
 
-    STATUS dump(const ModelIndex & root, const CBString & path, const CBString & guid = CBString());
+    STATUS dump(const ModelIndex & root, const std::wstring & path, const CBString & guid = CBString());
 
 private:
-    STATUS recursiveDump(const ModelIndex & root, const CBString & path, const CBString & guid);
+    STATUS recursiveDump(const ModelIndex & root, const std::wstring & path, const CBString & guid);
     TreeModel* model;
     bool dumped;
 };

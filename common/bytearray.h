@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include <stdint.h>
 #include <string>
+#include <vector>
 
 class ByteArray
 {
@@ -22,12 +23,13 @@ public:
     ByteArray() : d() {}
     ByteArray(const ByteArray & ba) : d(ba.d) {}
     ByteArray(const std::basic_string<char> & bs) : d(bs) {}
+    ByteArray(const std::vector<char> & bc) : d(bc.data(), bc.size()) {}
     ByteArray(const char* bytes, int32_t size) : d(bytes, size) {}
     ~ByteArray() {}
 
     bool isEmpty() const { return d.length() == 0; }
        
-    char* data() { return &(d.front()); /* Feels dirty, but works*/ }
+    char* data() { return &(d.front()); /* Feels dirty, but works for all basic_string implementations I know, is fully OK in C++11 and later*/ }
     const char* data() const { return d.c_str(); }
     const char* constData() const { return d.c_str(); }
     void clear() { d.clear(); }

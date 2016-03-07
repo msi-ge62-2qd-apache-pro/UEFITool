@@ -40,5 +40,5 @@ HEADERS += \
  ../common/Tiano/EfiTianoDecompress.h \
  ../common/bytearray.h \
  ../common/cbstring.h \
- ../bstrlib/bstrlib.h \
+ ../bstrlib/bstrlib.h
  

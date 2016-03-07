@@ -11,11 +11,15 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 */
 
+#include <windows.h> 
+
 #include "uefiextract.h"
 #include "../common/ffs.h"
 #include <iostream>
+#include <fstream>
 
-STATUS UEFIExtract::dump(const ModelIndex & root, const CBString & path, const CBString & guid)
+
+STATUS UEFIExtract::dump(const ModelIndex & root, const std::wstring & path, const CBString & guid)
 {
     dumped = false;
     UINT8 result = recursiveDump(root, path, guid);
@@ -26,7 +30,7 @@ STATUS UEFIExtract::dump(const ModelIndex & root, const CBString & path, const C
     return ERR_SUCCESS;
 }
 
-STATUS UEFIExtract::recursiveDump(const ModelIndex & index, const CBString & path, const CBString & guid)
+STATUS UEFIExtract::recursiveDump(const ModelIndex & index, const std::wstring & path, const CBString & guid)
 {
     if (!index.isValid())
         return ERR_INVALID_PARAMETER;
@@ -35,22 +39,60 @@ STATUS UEFIExtract::recursiveDump(const ModelIndex & index, const CBString & pat
         guidToString(*(const EFI_GUID*)model->header(index).constData()) == guid ||
         guidToString(*(const EFI_GUID*)model->header(model->findParentOfType(index, Types::File)).constData()) == guid) {
 
-        std::cout << path << std::endl;
-        std::cout << model->text(index) << std::endl;
-        std::cout << model->info(index) << std::endl;
-        std::cout << "--------------------------------------------" << std::endl;
+        if (SetCurrentDirectoryW(path.c_str()))
+            return ERR_DIR_ALREADY_EXIST;
+
+        if (!CreateDirectoryW(path.c_str(), NULL))
+            return ERR_DIR_CREATE;
+
+        // Header
+        if (!model->header(index).isEmpty()) {
+            std::ofstream file;
+            std::wstring name = path + std::wstring(L"\\header.bin");
+            file.open(name, std::ios::out | std::ios::binary);
+            file.write(model->header(index).constData(), model->header(index).size());
+            file.close();
+        }
+
+        // Body
+        if (!model->body(index).isEmpty()) {
+            std::ofstream file;
+            std::wstring name = path + std::wstring(L"\\body.bin");
+            file.open(name, std::ios::out | std::ios::binary);
+            file.write(model->body(index).constData(), model->body(index).size());
+            file.close();
+        }
+
+        // Info
+        CBString info = "Type: " + itemTypeToString(model->type(index)) + "\n" +
+            "Subtype: " + itemSubtypeToString(model->type(index), model->subtype(index)) + "\n";
+        if (model->text(index).length() > 0)
+            info += "Text: " + model->text(index) + "\n";
+        info += model->info(index);
+
+        std::ofstream file;
+        std::wstring name = path + std::wstring(L"\\info.txt");
+        file.open(name, std::ios::out);
+        file.write((const char*)info, info.length());
+        file.close();
+
+        //std::wcout << path << std::endl;
+        //std::cout << info << std::endl << "----------------------------" << std::endl;
+
         dumped = true;
     }
 
     UINT8 result;
     for (int i = 0; i < model->rowCount(index); i++) {
         ModelIndex childIndex = index.child(i, 0);
-        bool useText = FALSE;
+        bool useText = false;
         if (model->type(childIndex) != Types::Volume)
             useText = (model->text(childIndex).length() > 0);
-
-        CBString childPath;
-        childPath.format("%s/%d %s", (const char *)path, i, useText ? (const char *)model->text(childIndex) : (const char *)model->name(childIndex));
+                
+        CBString name = useText ? (const char *)model->text(childIndex) : (const char *)model->name(childIndex);
+        std::string sName = std::string((const char*)name, name.length());
+        std::wstring childPath = path + std::wstring(L"\\") + std::to_wstring(i) + std::wstring(L" ") + std::wstring(sName.begin(), sName.end());
+        
         result = recursiveDump(childIndex, childPath, guid);
         if (result)
             return result;
