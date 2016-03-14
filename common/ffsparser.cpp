@@ -25,30 +25,6 @@ struct REGION_INFO {
     friend bool operator< (const REGION_INFO & lhs, const REGION_INFO & rhs){ return lhs.offset < rhs.offset; }
 };
 
-FfsParser::FfsParser(TreeModel* treeModel)
-    : model(treeModel), capsuleOffsetFixup(0)
-{
-}
-
-FfsParser::~FfsParser()
-{
-}
-
-void FfsParser::msg(const ModelIndex &index, const CBString &message)
-{
-    messagesVector.push_back(std::pair<ModelIndex, CBString>(index, message));
-}
-
-std::vector<std::pair<ModelIndex, CBString> > FfsParser::getMessages() const
-{
-    return messagesVector;
-}
-
-void FfsParser::clearMessages()
-{
-    messagesVector.clear();
-}
-
 // Firmware image parsing functions
 STATUS FfsParser::parse(const ByteArray & buffer) 
 {

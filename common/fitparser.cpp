@@ -11,32 +11,7 @@ WITHWARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 */
 #include "fitparser.h"
 
-
-FitParser::FitParser(TreeModel* treeModel)
-    : model(treeModel)
-{
-}
-
-FitParser::~FitParser()
-{
-}
-
-void FitParser::msg(const QString & message, const QModelIndex & index)
-{
-    messagesVector.push_back(std::pair<QString, QModelIndex>(message, index));
-}
-
-std::vector<std::pair<QString, QModelIndex> > FitParser::getMessages() const
-{
-    return messagesVector;
-}
-
-void FitParser::clearMessages()
-{
-    messagesVector.clear();
-}
-
-STATUS FitParser::parse(const QModelIndex & index, const QModelIndex & lastVtfIndex)
+STATUS FitParser::parse(const ModelIndex & index, const ModelIndex & lastVtfIndex)
 {
     // Check sanity
     if (!index.isValid() || !lastVtfIndex.isValid())
@@ -46,7 +21,7 @@ STATUS FitParser::parse(const QModelIndex & index, const QModelIndex & lastVtfIn
     lastVtf = lastVtfIndex;
 
     // Search for FIT
-    QModelIndex fitIndex;
+    ModelIndex fitIndex;
     UINT32 fitOffset;
     STATUS result = findFitRecursive(index, fitIndex, fitOffset);
     if (result)
@@ -60,33 +35,39 @@ STATUS FitParser::parse(const QModelIndex & index, const QModelIndex & lastVtfIn
     model->setFixed(index, true);
 
     // Special case of FIT header
-    const FIT_ENTRY* fitHeader = (const FIT_ENTRY*)(model->body(fitIndex).constData() + fitOffset);
+    ByteArray body = model->body(fitIndex);
+    const FIT_ENTRY* fitHeader = (const FIT_ENTRY*)(body.constData() + fitOffset);
     
     // Check FIT checksum, if present
-    UINT32 fitSize = (fitHeader->Size & 0xFFFFFF) << 4;
+    CBString message;
+    UINT32 fitSize = (fitHeader->Size & 0x00FFFFFF) << 4;
     if (fitHeader->Type & 0x80) {
         // Calculate FIT entry checksum
-        QByteArray tempFIT = model->body(fitIndex).mid(fitOffset, fitSize);
+        ByteArray tempFIT = body.mid(fitOffset, fitSize);
         FIT_ENTRY* tempFitHeader = (FIT_ENTRY*)tempFIT.data();
         tempFitHeader->Checksum = 0;
         UINT8 calculated = calculateChecksum8((const UINT8*)tempFitHeader, fitSize);
         if (calculated != fitHeader->Checksum) {
-            msg(QObject::tr("Invalid FIT table checksum %1h, should be %2h").hexarg2(fitHeader->Checksum, 2).hexarg2(calculated, 2), fitIndex);
+            message.format("Invalid FIT table checksum %02Xh, should be %02Xh", fitHeader->Checksum, calculated);
+            msg(fitIndex, message);
         }
     }
 
     // Check fit header type
     if ((fitHeader->Type & 0x7F) != FIT_TYPE_HEADER) {
-        msg(QObject::tr("Invalid FIT header type"), fitIndex);
+        msg(fitIndex, CBString("Invalid FIT header type"));
     }
 
     // Add FIT header to fitTable
-    std::vector<QString> currentStrings;
-    currentStrings.push_back(QObject::tr("_FIT_   "));
-    currentStrings.push_back(QObject::tr("%1").hexarg2(fitSize, 8));
-    currentStrings.push_back(QObject::tr("%1").hexarg2(fitHeader->Version, 4));
-    currentStrings.push_back(fitEntryTypeToQString(fitHeader->Type));
-    currentStrings.push_back(QObject::tr("%1").hexarg2(fitHeader->Checksum, 2));
+    std::vector<CBString> currentStrings;
+    currentStrings.push_back(CBString("_FIT_   "));
+    message.format("%08X", fitSize);
+    currentStrings.push_back(CBString(message));
+    message.format("%04X", fitHeader->Version);
+    currentStrings.push_back(CBString(message));
+    currentStrings.push_back(fitEntryTypeToString(fitHeader->Type));
+    message.format("%02X", fitHeader->Checksum);
+    currentStrings.push_back(CBString(message));
     fitTable.push_back(currentStrings);
 
     // Process all other entries
@@ -98,7 +79,7 @@ STATUS FitParser::parse(const QModelIndex & index, const QModelIndex & lastVtfIn
         // Check entry type
         switch (currentEntry->Type & 0x7F) {
         case FIT_TYPE_HEADER:
-            msg(QObject::tr("Second FIT header found, the table is damaged"), fitIndex);
+            msg(fitIndex, CBString("Second FIT header found, the table is damaged"));
             break;
 
         case FIT_TYPE_EMPTY:
@@ -118,38 +99,42 @@ STATUS FitParser::parse(const QModelIndex & index, const QModelIndex & lastVtfIn
         }
 
         // Add entry to fitTable
-        currentStrings.push_back(QObject::tr("%1").hexarg2(currentEntry->Address, 16));
-        currentStrings.push_back(QObject::tr("%1").hexarg2(currentEntry->Size, 8));
-        currentStrings.push_back(QObject::tr("%1").hexarg2(currentEntry->Version, 4));
-        currentStrings.push_back(fitEntryTypeToQString(currentEntry->Type));
-        currentStrings.push_back(QObject::tr("%1").hexarg2(currentEntry->Checksum, 2));
+        message.format("%08X", currentEntry->Address);
+        currentStrings.push_back(CBString(message));
+        message.format("%08X", currentEntry->Size);
+        currentStrings.push_back(CBString(message));
+        message.format("%04X", currentEntry->Version);
+        currentStrings.push_back(CBString(message));
+        currentStrings.push_back(fitEntryTypeToString(currentEntry->Type));
+        message.format("%02X", currentEntry->Checksum);
+        currentStrings.push_back(CBString(message));
         fitTable.push_back(currentStrings);
     }
 
     if (msgModifiedImageMayNotWork)
-        msg(QObject::tr("Opened image may not work after any modification"));
+        msg(ModelIndex(), CBString("Opened image may not work after any modification"));
 
     return ERR_SUCCESS;
 }
 
-QString FitParser::fitEntryTypeToQString(UINT8 type)
+CBString FitParser::fitEntryTypeToString(UINT8 type)
 {
     switch (type & 0x7F) {
-    case FIT_TYPE_HEADER:           return QObject::tr("Header");
-    case FIT_TYPE_MICROCODE:        return QObject::tr("Microcode");
-    case FIT_TYPE_BIOS_AC_MODULE:   return QObject::tr("BIOS ACM");
-    case FIT_TYPE_BIOS_INIT_MODULE: return QObject::tr("BIOS Init");
-    case FIT_TYPE_TPM_POLICY:       return QObject::tr("TPM Policy");
-    case FIT_TYPE_BIOS_POLICY_DATA: return QObject::tr("BIOS Policy Data");
-    case FIT_TYPE_TXT_CONF_POLICY:  return QObject::tr("TXT Configuration Policy");
-    case FIT_TYPE_AC_KEY_MANIFEST:  return QObject::tr("BootGuard Key Manifest");
-    case FIT_TYPE_AC_BOOT_POLICY:   return QObject::tr("BootGuard Boot Policy");
-    case FIT_TYPE_EMPTY:            return QObject::tr("Empty");
-    default:                        return QObject::tr("Unknown");
+    case FIT_TYPE_HEADER:           return CBString("Header          ");
+    case FIT_TYPE_MICROCODE:        return CBString("Microcode       ");
+    case FIT_TYPE_BIOS_AC_MODULE:   return CBString("BIOS ACM        ");
+    case FIT_TYPE_BIOS_INIT_MODULE: return CBString("BIOS Init       ");
+    case FIT_TYPE_TPM_POLICY:       return CBString("TPM Policy      ");
+    case FIT_TYPE_BIOS_POLICY_DATA: return CBString("BIOS Policy Data");
+    case FIT_TYPE_TXT_CONF_POLICY:  return CBString("TXT Conf Policy ");
+    case FIT_TYPE_AC_KEY_MANIFEST:  return CBString("BG Key Manifest ");
+    case FIT_TYPE_AC_BOOT_POLICY:   return CBString("BG Boot Policy  ");
+    case FIT_TYPE_EMPTY:            return CBString("Empty           ");
+    default:                        return CBString("Unknown Type    ");
     }
 }
 
-STATUS FitParser::findFitRecursive(const QModelIndex & index, QModelIndex & found, UINT32 & fitOffset)
+STATUS FitParser::findFitRecursive(const ModelIndex & index, ModelIndex & found, UINT32 & fitOffset)
 {
     // Sanity check
     if (!index.isValid())
@@ -163,25 +148,27 @@ STATUS FitParser::findFitRecursive(const QModelIndex & index, QModelIndex & foun
     }
 
     // Get parsing data for the current item
-    PARSING_DATA pdata = parsingDataFromQModelIndex(index);
+    PARSING_DATA pdata = parsingDataFromModelIndex(index);
 
     // Check for all FIT signatures in item's body
-    for (INT32 offset = model->body(index).indexOf(FIT_SIGNATURE); 
+    ByteArray body = model->body(index);
+    for (INT32 offset = body.indexOf(FIT_SIGNATURE); 
          offset >= 0; 
-         offset = model->body(index).indexOf(FIT_SIGNATURE, offset + 1)) {
+         offset = body.indexOf(FIT_SIGNATURE, offset + 1)) {
         // FIT candidate found, calculate it's physical address
         UINT32 fitAddress = pdata.address + model->header(index).size() + (UINT32)offset;
             
         // Check FIT address to be in the last VTF
-        QByteArray lastVtfBody = model->body(lastVtf);
+        ByteArray lastVtfBody = model->body(lastVtf);
         if (*(const UINT32*)(lastVtfBody.constData() + lastVtfBody.size() - FIT_POINTER_OFFSET) == fitAddress) {
             found = index;
             fitOffset = offset;
-            msg(QObject::tr("Real FIT table found at physical address %1h").hexarg(fitAddress), found);
+            CBString message; message.format("Real FIT table found at physical address %08Xh", fitAddress);
+            msg(found, message);
             return ERR_SUCCESS;
         }
         else if (model->rowCount(index) == 0) // Show messages only to leaf items
-            msg(QObject::tr("FIT table candidate found, but not referenced from the last VTF"), index);
+            msg(index, CBString("FIT table candidate found, but not referenced from the last VTF"));
     }
 
     return ERR_SUCCESS;

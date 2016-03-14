@@ -19,18 +19,27 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "../common/basetypes.h"
 #include "../common/cbstring.h"
 #include "../common/treemodel.h"
+#include "../common/ffsparser.h"
+#include "../common/fitparser.h"
 
 class UEFIExtract
 {
 public:
-    explicit UEFIExtract(TreeModel * treeModel) : model(treeModel), dumped(false) {}
+    explicit UEFIExtract() : model(), ffsParser(&model), fitParser(&model), initialized(false), dumped(false) {}
     ~UEFIExtract() {}
 
-    STATUS dump(const ModelIndex & root, const std::wstring & path, const CBString & guid = CBString());
+    STATUS dump(const ByteArray buffer, const std::wstring & path, const std::wstring & guid = std::wstring());
 
 private:
-    STATUS recursiveDump(const ModelIndex & root, const std::wstring & path, const CBString & guid);
-    TreeModel* model;
+    STATUS recursiveDump(const ModelIndex & root, const std::wstring & path, const std::wstring & guid);
+    std::wstring guidToWstring(const EFI_GUID & guid);
+    bool createFullPath(const std::wstring & path);
+
+    TreeModel model;
+    FfsParser ffsParser;
+    FitParser fitParser;
+
+    bool initialized;
     bool dumped;
 };
 

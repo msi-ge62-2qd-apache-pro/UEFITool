@@ -9,6 +9,7 @@ SET(PROJECT_SOURCES
  ../common/descriptor.cpp 
  ../common/ffs.cpp 
  ../common/ffsparser.cpp 
+ ../common/fitparser.cpp 
  ../common/peimage.cpp 
  ../common/treeitem.cpp 
  ../common/treemodel.cpp 
@@ -28,6 +29,7 @@ SET(PROJECT_HEADERS
  ../common/me.h 
  ../common/ffs.h 
  ../common/ffsparser.h 
+ ../common/fitparser.h
  ../common/peimage.h 
  ../common/types.h 
  ../common/treeitem.h 

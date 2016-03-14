@@ -35,13 +35,13 @@ class FfsParser
 {
 public:
     // Default constructor and destructor
-    FfsParser(TreeModel* treeModel);
-    ~FfsParser();
+    FfsParser(TreeModel* treeModel) : model(treeModel), capsuleOffsetFixup(0) {};
+    ~FfsParser() {};
 
     // Returns messages 
-    std::vector<std::pair<ModelIndex, CBString> > getMessages() const;
+    std::vector<std::pair<ModelIndex, CBString> > getMessages() const { return messagesVector; };
     // Clears messages
-    void clearMessages();
+    void clearMessages() { messagesVector.clear(); };
 
     // Firmware image parsing
     STATUS parse(const ByteArray &buffer);
@@ -103,7 +103,7 @@ private:
     STATUS addMemoryAddressesRecursive(const ModelIndex & index, const UINT32 diff);
 
     // Message helper
-    void msg(const ModelIndex &index, const CBString & message);
+    void msg(const ModelIndex &index, const CBString & message) { messagesVector.push_back(std::pair<ModelIndex, CBString>(index, message)); }
 };
 
 #endif

@@ -13,7 +13,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <iostream>
 #include <fstream>
 
-#include "../common/ffsparser.h"
 #include "uefiextract.h"
 
 int wmain(int argc, wchar_t *argv[])
@@ -29,34 +28,22 @@ int wmain(int argc, wchar_t *argv[])
         std::vector<char> buffer(std::istreambuf_iterator<char>(inputFile),
             (std::istreambuf_iterator<char>()));
         inputFile.close();
+        
+        std::wstring path = std::wstring(argv[1]).append(L".dump");
+        path = L"\\\\?\\" + path;
+        std::wcout << L"Path: " << path << std::endl;
 
-        TreeModel model;
-        FfsParser ffsParser(&model);
-        STATUS result = ffsParser.parse(buffer);
-        if (result)
-            return result;
-
-        std::vector<std::pair<ModelIndex, CBString> > messages = ffsParser.getMessages();
-        for (size_t i = 0; i < messages.size(); i++) {
-            std::cout << messages[i].second << std::endl;
-        }
-
-        UEFIExtract uefiextract(&model);
-
+        UEFIExtract uefiextract;
         if (argc == 2) {
-            std::wstring path = std::wstring(L"\\\\?\\") + std::wstring(argv[0]) + L"." + std::wstring(argv[1]) + L".dump";
-            return (uefiextract.dump(model.index(0, 0), path) != ERR_SUCCESS);
+            return (uefiextract.dump(buffer, path) != ERR_SUCCESS);
         }
-        /*else {
+        else {
             UINT32 returned = 0;
-            path += ".dump";
-            for (int i = 2; i < argc; i++) {
-                result = uefiextract.dump(model.index(0, 0), path, argv[i]);
-                if (result)
+            for (int i = 2; i < argc; i++)
+                if (uefiextract.dump(buffer, path, std::wstring(argv[i])))
                     returned |= (1 << (i - 1));
-            }
             return returned;
-        }*/
+        }
     }
     else {
         std::cout << "UEFIExtract 0.20.0" << std::endl << std::endl

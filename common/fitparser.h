@@ -15,10 +15,6 @@ WITHWARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include <vector>
 
-#include <QObject>
-#include <QModelIndex>
-#include <QByteArray>
-
 #include "treemodel.h"
 #include "utility.h"
 #include "parsingdata.h"
@@ -32,28 +28,28 @@ class FitParser
 {
 public:
     // Default constructor and destructor
-    FitParser(TreeModel* treeModel);
-    ~FitParser();
+    FitParser(TreeModel* treeModel) : model(treeModel) {};
+    ~FitParser() {};
 
-    // Returns messages
-    std::vector<std::pair<QString, QModelIndex> > getMessages() const;
+    // Returns messages 
+    std::vector<std::pair<ModelIndex, CBString> > getMessages() const { return messagesVector; };
     // Clears messages
-    void clearMessages();
+    void clearMessages() { messagesVector.clear(); };
 
-    STATUS parse(const QModelIndex & index, const QModelIndex & lastVtf);
-    std::vector<std::vector<QString> > getFitTable() const { return fitTable; }
+    STATUS parse(const ModelIndex & index, const ModelIndex & lastVtf);
+    std::vector<std::vector<CBString> > getFitTable() const { return fitTable; }
 
 private:
     TreeModel *model;
-    std::vector<std::pair<QString, QModelIndex> > messagesVector;
-    QModelIndex lastVtf;
-    std::vector<std::vector<QString> > fitTable;
+    std::vector<std::pair<ModelIndex, CBString> > messagesVector;
+    ModelIndex lastVtf;
+    std::vector<std::vector<CBString> > fitTable;
     
-    STATUS findFitRecursive(const QModelIndex & index, QModelIndex & found, UINT32 & fitOffset);
-    QString fitEntryTypeToQString(UINT8 type);
+    STATUS findFitRecursive(const ModelIndex & index, ModelIndex & found, UINT32 & fitOffset);
+    CBString fitEntryTypeToString(UINT8 type);
 
     // Message helper
-    void msg(const QString & message, const QModelIndex &index = QModelIndex());
+    void msg(const ModelIndex &index, const CBString & message) { messagesVector.push_back(std::pair<ModelIndex, CBString>(index, message)); }
 };
 
 #endif
