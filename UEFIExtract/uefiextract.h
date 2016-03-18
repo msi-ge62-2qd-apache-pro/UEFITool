@@ -25,10 +25,10 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 class UEFIExtract
 {
 public:
-    explicit UEFIExtract() : model(), ffsParser(&model), fitParser(&model), initialized(false), dumped(false) {}
+    explicit UEFIExtract() : model(), ffsParser(&model), fitParser(&model), currentBuffer(), initialized(false), dumped(false) {}
     ~UEFIExtract() {}
 
-    STATUS dump(const ByteArray buffer, const std::wstring & path, const std::wstring & guid = std::wstring());
+    STATUS dump(const ByteArray & buffer, const std::wstring & path, const std::wstring & guid = std::wstring());
 
 private:
     STATUS recursiveDump(const ModelIndex & root, const std::wstring & path, const std::wstring & guid);
@@ -39,6 +39,7 @@ private:
     FfsParser ffsParser;
     FitParser fitParser;
 
+    ByteArray currentBuffer;
     bool initialized;
     bool dumped;
 };

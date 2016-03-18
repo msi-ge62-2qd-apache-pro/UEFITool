@@ -20,14 +20,30 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <sstream>
 #include <iomanip>
 
-STATUS UEFIExtract::dump(const ByteArray buffer, const std::wstring & path, const std::wstring & guid)
+STATUS UEFIExtract::dump(const ByteArray & buffer, const std::wstring & inPath, const std::wstring & guid)
 {
+    //TODO: rework to support relative paths
+    std::wstring path = std::wstring(inPath).append(L".dump");
+    path = L"\\\\?\\" + path;
+    std::wcout << L"Path: " << path << std::endl;
+
+    if (initialized) {
+        // Check if called with a different buffer as before
+        if (buffer != currentBuffer) {
+            // Reinitalize if so
+            initialized = false;
+        }
+    }
+
     if (!initialized) {
+        // Fill currentBuffer
+        currentBuffer = buffer;
+
         // Parse FFS structure
         STATUS result = ffsParser.parse(buffer);
         if (result)
             return result;
-        // Show messages
+        // Show ffsParser messages
         std::vector<std::pair<ModelIndex, CBString> > messages = ffsParser.getMessages();
         for (size_t i = 0; i < messages.size(); i++) {
             std::cout << messages[i].second << std::endl;
@@ -37,7 +53,7 @@ STATUS UEFIExtract::dump(const ByteArray buffer, const std::wstring & path, cons
         result = fitParser.parse(model.index(0, 0), ffsParser.getLastVtf());
         if (result)
             return result;
-        // Show messages
+        // Show fitParser messages
         messages = fitParser.getMessages();
         for (size_t i = 0; i < messages.size(); i++) {
             std::cout << "fitParser: " << messages[i].second << std::endl;
@@ -97,7 +113,7 @@ bool UEFIExtract::createFullPath(const std::wstring & path) {
     // Slash is not found, it's a bug
     if (pos == path.npos)
         return FALSE;
-
+    
     std::wstring parent = path.substr(0, pos);
     std::wstring current = path.substr(pos + 1);
 
@@ -108,8 +124,8 @@ bool UEFIExtract::createFullPath(const std::wstring & path) {
         return CreateDirectoryW(path.c_str(), NULL);
     }
 
-    bool result = createFullPath(parent);
-    if (result)
+    // Perform recursive call
+    if (createFullPath(parent))
         return CreateDirectoryW(path.c_str(), NULL);
 
     return FALSE;
@@ -134,20 +150,22 @@ STATUS UEFIExtract::recursiveDump(const ModelIndex & index, const std::wstring &
             return ERR_DIR_CREATE;
 
         // Header
-        if (!model.header(index).isEmpty()) {
+        ByteArray data = model.header(index);
+        if (!data.isEmpty()) {
             std::ofstream file;
             std::wstring name = path + std::wstring(L"\\header.bin");
             file.open(name, std::ios::out | std::ios::binary);
-            file.write(model.header(index).constData(), model.header(index).size());
+            file.write(data.constData(), data.size());
             file.close();
         }
 
         // Body
-        if (!model.body(index).isEmpty()) {
+        data = model.body(index);
+        if (!data.isEmpty()) {
             std::ofstream file;
             std::wstring name = path + std::wstring(L"\\body.bin");
             file.open(name, std::ios::out | std::ios::binary);
-            file.write(model.body(index).constData(), model.body(index).size());
+            file.write(data.constData(), data.size());
             file.close();
         }
 
@@ -163,9 +181,6 @@ STATUS UEFIExtract::recursiveDump(const ModelIndex & index, const std::wstring &
         file.open(name, std::ios::out);
         file.write((const char*)info, info.length());
         file.close();
-
-        //std::wcout << path << std::endl;
-        //std::cout << info << std::endl << "----------------------------" << std::endl;
 
         dumped = true;
     }

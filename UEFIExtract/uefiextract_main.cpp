@@ -29,18 +29,14 @@ int wmain(int argc, wchar_t *argv[])
             (std::istreambuf_iterator<char>()));
         inputFile.close();
         
-        std::wstring path = std::wstring(argv[1]).append(L".dump");
-        path = L"\\\\?\\" + path;
-        std::wcout << L"Path: " << path << std::endl;
-
         UEFIExtract uefiextract;
         if (argc == 2) {
-            return (uefiextract.dump(buffer, path) != ERR_SUCCESS);
+            return (uefiextract.dump(buffer, std::wstring(argv[1])) != ERR_SUCCESS);
         }
         else {
             UINT32 returned = 0;
             for (int i = 2; i < argc; i++)
-                if (uefiextract.dump(buffer, path, std::wstring(argv[i])))
+                if (uefiextract.dump(buffer, std::wstring(argv[1]), std::wstring(argv[i])))
                     returned |= (1 << (i - 1));
             return returned;
         }
