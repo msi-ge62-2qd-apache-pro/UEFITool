@@ -40,19 +40,17 @@
 #include "ffsengine.h"
 #include "searchdialog.h"
 
-
-
+QT_BEGIN_NAMESPACE
 namespace Ui {
     class UEFITool;
 }
+QT_END_NAMESPACE
 
 class UEFITool : public QMainWindow
 {
     Q_OBJECT
 
-
 public:
-
     explicit UEFITool(QWidget *parent = 0);
     ~UEFITool();
 
