@@ -206,7 +206,7 @@ UINT8 checkAggressivityLevel(int aggressivity) {
     return ERR_SUCCESS;
 }
 
-UINT8 convertBinary(QString input, QString guid, QString sectionName, QByteArray & out)
+UINT8 convertOzmPlist(QString input, QByteArray & out)
 {
     UINT8 ret;
     QByteArray plist;
@@ -217,7 +217,7 @@ UINT8 convertBinary(QString input, QString guid, QString sectionName, QByteArray
         return ERR_ERROR;
     }
 
-    ret = freeformCreate(plist, guid, sectionName, out);
+    ret = ffsCreate(plist, ozmosisDefaults.GUID, ozmosisDefaults.name, out);
     if(ret) {
         printf("ERROR: KEXT2FFS failed on '%s'\n", qPrintable(ozmDefaultsFilename));
         return ERR_ERROR;
@@ -226,12 +226,12 @@ UINT8 convertBinary(QString input, QString guid, QString sectionName, QByteArray
     return ERR_SUCCESS;
 }
 
-UINT8 convertKext(QString input, QString guid, QString basename, QByteArray & out)
+UINT8 convertKext(QString input, int kextIndex, QString basename, QByteArray & out)
 {
     UINT8 ret;
     UINT8 nullterminator = 0;
 
-    QString sectionName;
+    QString sectionName, guid;
     QString bundleVersion, execName;
     QDir dir;
 
@@ -243,6 +243,11 @@ UINT8 convertKext(QString input, QString guid, QString basename, QByteArray & ou
     QByteArray toConvertBinary;
 
     // Check all folders in input-dir
+
+    if(kextIndex > 0xF) {
+        printf("ERROR: Invalid kextIndex '%i' supplied!\n", kextIndex);
+        return ERR_ERROR;
+    }
 
     dir.setPath(input);
     dir = dir.filePath("Contents");
@@ -289,15 +294,17 @@ UINT8 convertKext(QString input, QString guid, QString basename, QByteArray & ou
     if (ret) {
         printf("Info: Unable to get version string...\n");
         sectionName = basename;
-    } else {
-        sectionName.sprintf("%s.Rev-%s",qPrintable(basename), qPrintable(bundleVersion));
     }
+    else
+        sectionName.sprintf("%s.Rev-%s",qPrintable(basename), qPrintable(bundleVersion));
+
+    guid = kextGUID.arg(kextIndex, 1, 16).toUpper();
 
     toConvertBinary.append(plistbuf);
     toConvertBinary.append(nullterminator);
     toConvertBinary.append(binarybuf);
 
-    ret = freeformCreate(toConvertBinary, guid, sectionName, out);
+    ret = ffsCreate(toConvertBinary, guid, sectionName, out);
     if(ret) {
         printf("ERROR: KEXT2FFS failed on '%s'\n", qPrintable(sectionName));
         return ERR_ERROR;
@@ -306,9 +313,9 @@ UINT8 convertKext(QString input, QString guid, QString basename, QByteArray & ou
     return ERR_SUCCESS;
 }
 
-UINT8 fileCreate(QByteArray fileBody, QString fileGuid, UINT8 fileType, UINT8 fileAttributes, UINT8 revision, UINT8 erasePolarity, QByteArray & fileOut)
+UINT8 ffsCreate(QByteArray body, QString guid, QString sectionName, UINT8 fileType, UINT8 fileAttributes, UINT8 revision, UINT8 erasePolarity, QByteArray & out)
 {
-    QUuid uuid = QUuid(fileGuid);
+    QUuid uuid = QUuid(guid);
     EFI_FFS_FILE_HEADER *ffsHeader = new EFI_FFS_FILE_HEADER(); // = {0};
 
     if(uuid.isNull()) {
@@ -333,7 +340,7 @@ UINT8 fileCreate(QByteArray fileBody, QString fileGuid, UINT8 fileType, UINT8 fi
         ffsHeader->Attributes = fileAttributes;
         ffsHeader->State = EFI_FILE_HEADER_CONSTRUCTION | EFI_FILE_HEADER_VALID | EFI_FILE_DATA_VALID;
         ffsHeader->Type = fileType;
-        uint32ToUint24(sizeof(EFI_FFS_FILE_HEADER)+fileBody.size(), ffsHeader->Size);
+        uint32ToUint24(sizeof(EFI_FFS_FILE_HEADER)+body.size(), ffsHeader->Size);
         memcpy(&ffsHeader->Name, &uuid.data1, sizeof(EFI_GUID));
         break;
     default:
@@ -353,7 +360,7 @@ UINT8 fileCreate(QByteArray fileBody, QString fileGuid, UINT8 fileType, UINT8 fi
 
     // Set data checksum
     if (ffsHeader->Attributes & FFS_ATTRIB_CHECKSUM)
-        ffsHeader->IntegrityCheck.Checksum.File = calculateChecksum8((UINT8*)fileBody.constData(), fileBody.size());
+        ffsHeader->IntegrityCheck.Checksum.File = calculateChecksum8((UINT8*)body.constData(), body.size());
     else if (revision == 1)
         ffsHeader->IntegrityCheck.Checksum.File = FFS_FIXED_CHECKSUM;
     else
@@ -386,7 +393,7 @@ UINT8 sectionCreate(QByteArray body, UINT8 sectionType, QByteArray & sectionOut)
         compressedSection->CompressionType = COMPRESSION_ALGORITHM_TIANO;
         compressedSection->Type = EFI_SECTION_COMPRESSION;
         compressedSection->UncompressedLength = body.size(); //fileBody ???
-        uint32ToUint24(sizeof(EFI_COMPRESSION_SECTION) + fileBody.size(), compressedSection->Size); //body.size ???
+        uint32ToUint24(sizeof(EFI_COMPRESSION_SECTION) + body.size(), compressedSection->Size); //body.size ???
 
         header.append((const char *) compressedSection, sizeof(EFI_COMPRESSION_SECTION));
         break;
@@ -401,9 +408,9 @@ UINT8 sectionCreate(QByteArray body, UINT8 sectionType, QByteArray & sectionOut)
     case EFI_SECTION_RAW:
         fileBody.append(body);
         alignment = fileBody.size() % 4;
-        if (alignment) {
+    if (alignment) {
             fileBody.append(QByteArray(4 - alignment, '\x00'));
-        }
+    }
 
         sectionHeader->Type = sectionType;
         uint32ToUint24(sizeof(EFI_COMMON_SECTION_HEADER) + fileBody.size(), sectionHeader->Size);
@@ -421,7 +428,7 @@ UINT8 sectionCreate(QByteArray body, UINT8 sectionType, QByteArray & sectionOut)
     return ERR_SUCCESS;
 }
 
-UINT8 freeformCreate(QByteArray binary, QString guid, QString sectionName, QByteArray & fileOut)
+UINT8 freeformCreate(QByteArray binary, QString guid, QString sectionName, QByteArray & out)
 {
     UINT8 ret;
     QByteArray rawSection, userSection, ffs, body;
@@ -452,7 +459,7 @@ UINT8 freeformCreate(QByteArray binary, QString guid, QString sectionName, QByte
         return ERR_ERROR;
     }
 
-    fileOut = ffs;
+    out = ffs;
 
     return 0;
 }
@@ -508,7 +515,7 @@ UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray 
     EFI_IMAGE_BASE_RELOCATION *BASE_RELOCATION;
     RELOC_ENTRY *RELOCATION_ENTRIES;
 
-    const static char *DATA_SECTION  = ".data";
+    const static char *DATA_SECTION = ".data";
     const static char *EMPTY_SECTION = ".empty";
     const static char *RELOC_SECTION = ".reloc";
 
@@ -533,7 +540,7 @@ UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray 
 
     oldDSDTsize = getUInt32(ami, offset+DSDT_HEADER_SZ, TRUE);
 
-    if(oldDSDTsize > (UINT32) (sizeof(amiboardbuf) - offset)) {
+    if (oldDSDTsize > (UINT32) (sizeof(amiboardbuf) - offset)) {
         printf("ERROR: Read invalid size from DSDT. Aborting!\n");
         return ERR_INVALID_PARAMETER;
     }
@@ -556,7 +563,7 @@ UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray 
     Section = (EFI_IMAGE_SECTION_HEADER *) & amiboardbuf[sectionsStart];
 
     relocStart = HeaderNT->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
-    relocSize  = HeaderNT->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC].Size;
+    relocSize = HeaderNT->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC].Size;
 
     if((HeaderNT->OptionalHeader.DllCharacteristics & DYNAMIC_BASE) && hasDotROM) {
         needsCodePatching = FALSE;
@@ -670,7 +677,7 @@ UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray 
 
     if (needsCodePatching) {
         printf(" * Patching addresses in code\n");
-        const static UINT32 MAX_INSTRUCTIONS = 1000;
+        const static UINT32 MAX_INSTRUCTIONS = 5000;
         _DInst decomposed[MAX_INSTRUCTIONS];
         _DecodedInst disassembled[MAX_INSTRUCTIONS];
         _DecodeResult res, res2;
@@ -704,7 +711,7 @@ UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray 
             return ERR_ERROR;
         }
 
-        for (int i = 0; i < (int) decodedInstructionsCount; i++) {
+        for (UINT32 i = 0; i < decodedInstructionsCount; i++) {
 
             if((decomposed[i].disp < (UINT64)offset)||decomposed[i].disp > (MAX_DSDT & 0xFF000))
                 continue;
@@ -739,6 +746,428 @@ UINT8 injectDSDTintoAmiboardInfo(QByteArray ami, QByteArray dsdtbuf, QByteArray 
     out.append(QByteArray((alignDiffDSDT - diffDSDT), '\x00'));
     // Copy the rest
     out.append(ami.mid(offset + oldDSDTsize));
+
+    return ERR_SUCCESS;
+}
+
+UINT8 patchNvram(QByteArray in, QByteArray blob, QByteArray & out)
+{
+    int i;
+
+    UINT32 baseOfCode, sizeOfCode, insertOffset;
+
+    UINT32 relocStart, relocSize;
+    int physEntries, logicalEntries;
+    UINT32 index;
+    UINT32 dataLeft;
+    UINT32 baseRelocAddr;
+	UINT64 imageBase;
+
+	UINT32 rdataStart, rdataSize;
+	UINT32 dataStart, dataSize;
+
+    UINT32 sectionsStart, diffCode, alignDiffCode;
+    EFI_IMAGE_DOS_HEADER *HeaderDOS;
+    EFI_IMAGE_NT_HEADERS64 *HeaderNT;
+    EFI_IMAGE_SECTION_HEADER *Section;
+    EFI_IMAGE_BASE_RELOCATION *BASE_RELOCATION;
+    RELOC_ENTRY *RELOCATION_ENTRIES;
+
+    const static char *TEXT_SECTION = ".text";
+    const static char *RDATA_SECTION = ".rdata";
+    const static char *DATA_SECTION = ".data";
+    const static char *EMPTY_SECTION = ".empty";
+    const static char *RELOC_SECTION = ".reloc";
+
+    static unsigned char *pe32 = (unsigned char*)in.constData();
+
+    HeaderDOS = (EFI_IMAGE_DOS_HEADER *)pe32;
+
+    if (HeaderDOS->e_magic != EFI_IMAGE_DOS_SIGNATURE) {
+        printf("Error: Invalid file, not AmiBoardInfo. Aborting!\n");
+        return ERR_INVALID_FILE;
+    }
+
+    diffCode = blob.size();
+    alignDiffCode = ALIGN32(diffCode);
+
+    HeaderNT = (EFI_IMAGE_NT_HEADERS64 *)&pe32[HeaderDOS->e_lfanew];
+    sectionsStart = HeaderDOS->e_lfanew+sizeof(EFI_IMAGE_NT_HEADERS64);
+    Section = (EFI_IMAGE_SECTION_HEADER *)&pe32[sectionsStart];
+
+    relocStart = HeaderNT->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
+    relocSize = HeaderNT->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC].Size;
+
+    baseOfCode = HeaderNT->OptionalHeader.BaseOfCode;
+    sizeOfCode = HeaderNT->OptionalHeader.SizeOfCode;
+	imageBase = HeaderNT->OptionalHeader.ImageBase;
+    insertOffset = baseOfCode + sizeOfCode;
+
+    printf(" * Header...\n");
+    printf("\tBaseOfCode: %X\n",
+           HeaderNT->OptionalHeader.BaseOfCode);
+
+    printf("\tImageBase: %016llx\n",
+           HeaderNT->OptionalHeader.ImageBase);
+
+    printf("\tRelocStart: %X\n",
+           relocStart);
+    printf("\tRelocSize: %X\n",
+           relocSize);
+
+    printf(" * Patching header...\n");
+    printf("\tSizeOfImage: %X --> %X\n",
+           HeaderNT->OptionalHeader.SizeOfImage,
+           HeaderNT->OptionalHeader.SizeOfImage += alignDiffCode);
+    printf("\tSizeOfCode: %X --> %X\n",
+           HeaderNT->OptionalHeader.SizeOfCode,
+           HeaderNT->OptionalHeader.SizeOfCode += alignDiffCode);
+
+    printf(" * Patching directory entries...\n");
+    for ( i = 0; i < EFI_IMAGE_NUMBER_OF_DIRECTORY_ENTRIES ;i++) {
+
+        if(HeaderNT->OptionalHeader.DataDirectory[i].VirtualAddress == 0)
+            continue;
+
+        printf(" - DataDirectory %02X:\n", i);
+        printf("\tVirtualAddress: %X --> %X\n",
+               HeaderNT->OptionalHeader.DataDirectory[i].VirtualAddress,
+               HeaderNT->OptionalHeader.DataDirectory[i].VirtualAddress += alignDiffCode);
+    }
+
+    printf(" * Patching sections...\n");
+    for (i = 0 ; i < HeaderNT->FileHeader.NumberOfSections; i++) {
+
+        if (!strcmp((char *)&Section[i].Name, "")) // Give it a clear name
+            strcpy((char *)&Section[i].Name, EMPTY_SECTION);
+
+        printf(" - Section: %s\n", Section[i].Name);
+        printf("____ORIGINAL START_____\n");
+        printf("VirtualAddress: %x\n",Section[i].VirtualAddress);
+        printf("SizeOfRawData: %x\n",Section[i].SizeOfRawData);
+        printf("PtrLinenumbers: %x\n",Section[i].PointerToLinenumbers);
+        printf("PtrRawData: %x\n",Section[i].PointerToRawData);
+        printf("PtrRelocations: %x\n",Section[i].PointerToRelocations);
+        printf("NumLinenumbers: %x\n",Section[i].NumberOfLinenumbers);
+        printf("NumRelocations: %x\n",Section[i].NumberOfRelocations);
+        printf("Misc.PhysAddress: %x\n",Section[i].Misc.PhysicalAddress);
+        printf("Misc.VirtualSize: %x\n",Section[i].Misc.VirtualSize);
+        printf("____ORIGINAL END  _____\n");
+
+
+        if(!strcmp((char *)&Section[i].Name, TEXT_SECTION)) {
+            printf("\tSizeOfRawData: %X --> %X\n",
+                   Section[i].SizeOfRawData,
+                   Section[i].SizeOfRawData += alignDiffCode);
+            printf("\tVirtualSize: %X --> %X\n",
+                   Section[i].Misc.VirtualSize,
+                   Section[i].Misc.VirtualSize += alignDiffCode);
+        }
+        else if(!strcmp((char *)&Section[i].Name, RDATA_SECTION)) {
+			rdataStart = Section[i].PointerToRawData;
+			rdataSize = Section[i].SizeOfRawData;
+            printf("\tVirtualAddress: %X --> %X\n",
+                   Section[i].VirtualAddress,
+                   Section[i].VirtualAddress += alignDiffCode);
+            printf("\tPointerToRawData: %X --> %X\n",
+                   Section[i].PointerToRawData,
+                   Section[i].PointerToRawData += alignDiffCode);
+        }
+        else if(!strcmp((char *)&Section[i].Name, DATA_SECTION)) {
+			dataStart = Section[i].PointerToRawData;
+			dataSize = Section[i].SizeOfRawData;
+            printf("\tVirtualAddress: %X --> %X\n",
+                   Section[i].VirtualAddress,
+                   Section[i].VirtualAddress += alignDiffCode);
+            printf("\tPointerToRawData: %X --> %X\n",
+                   Section[i].PointerToRawData,
+                   Section[i].PointerToRawData += alignDiffCode);
+        }
+        else if(!strcmp((char *)&Section[i].Name, EMPTY_SECTION)) {
+            /* .empty section is after .text -> needs patching */
+            printf("\tVirtualAddress: %X --> %X\n",
+                   Section[i].VirtualAddress,
+                   Section[i].VirtualAddress += alignDiffCode);
+            printf("\tPointerToRawData: %X --> %X\n",
+                   Section[i].PointerToRawData,
+                   Section[i].PointerToRawData += alignDiffCode);
+        }
+        else if(!strcmp((char *)&Section[i].Name, RELOC_SECTION)) {
+            /* .reloc section is after .text -> needs patching */
+            printf("\tVirtualAddress: %X --> %X\n",
+                   Section[i].VirtualAddress,
+                   Section[i].VirtualAddress += alignDiffCode);
+            printf("\tPointerToRawData: %X --> %X\n",
+                   Section[i].PointerToRawData,
+                   Section[i].PointerToRawData += alignDiffCode);
+        }
+        else
+            printf("\tNothing to do here...\n");
+
+        printf("____FIXED START_____\n");
+        printf("VirtualAddress: %x\n",Section[i].VirtualAddress);
+        printf("SizeOfRawData: %x\n",Section[i].SizeOfRawData);
+        printf("PtrLinenumbers: %x\n",Section[i].PointerToLinenumbers);
+        printf("PtrRawData: %x\n",Section[i].PointerToRawData);
+        printf("PtrRelocations: %x\n",Section[i].PointerToRelocations);
+        printf("NumLinenumbers: %x\n",Section[i].NumberOfLinenumbers);
+        printf("NumRelocations: %x\n",Section[i].NumberOfRelocations);
+        printf("Misc.PhysAddress: %x\n",Section[i].Misc.PhysicalAddress);
+        printf("Misc.VirtualSize: %x\n",Section[i].Misc.VirtualSize);
+        printf("____FIXED END  _____\n");
+    }
+
+    if(relocStart > 0) {
+        printf(" * Patching actual relocations...\n");
+        index = 0;
+        dataLeft = relocSize;
+        baseRelocAddr = relocStart;
+        while(dataLeft > 0) {
+            BASE_RELOCATION = (EFI_IMAGE_BASE_RELOCATION*) &pe32[baseRelocAddr];
+            physEntries = (BASE_RELOCATION->SizeOfBlock - EFI_IMAGE_SIZEOF_BASE_RELOCATION) / EFI_IMAGE_SIZEOF_RELOC_ENTRY;
+            logicalEntries = physEntries - 1; // physEntries needed to calc next Base Relocation Table offset
+            RELOCATION_ENTRIES = (RELOC_ENTRY*) &pe32[baseRelocAddr+EFI_IMAGE_SIZEOF_BASE_RELOCATION];
+
+            baseRelocAddr += EFI_IMAGE_SIZEOF_BASE_RELOCATION + (physEntries * EFI_IMAGE_SIZEOF_RELOC_ENTRY);
+            dataLeft -= (physEntries * EFI_IMAGE_SIZEOF_RELOC_ENTRY) + EFI_IMAGE_SIZEOF_BASE_RELOCATION;
+
+
+            printf(" - Relocation Table %X:\n", index);
+            index++;
+
+            if(BASE_RELOCATION->VirtualAddress < (UINT32)insertOffset) {
+                printf("\tNothing to do here - VirtualAddress < DSDTOffset (%X < %X)\n",
+                                BASE_RELOCATION->VirtualAddress, insertOffset);
+                continue;
+            }
+
+            //Testing first relocation entry should be good..
+            UINT32 shiftBy = ((UINT32)RELOCATION_ENTRIES[0].offset + alignDiffCode) & 0xF000;
+
+            printf(" - VirtualAddress: %X --> %X\n",
+                    BASE_RELOCATION->VirtualAddress,
+                    BASE_RELOCATION->VirtualAddress += shiftBy);
+
+            for(int j=0; j<logicalEntries; j++) {
+                printf(" - Relocation: %X\n", j);
+                printf("\tOffset: %X --> %X\n",
+                       RELOCATION_ENTRIES[j].offset,
+                       RELOCATION_ENTRIES[j].offset += alignDiffCode);
+            }
+        }
+    }
+
+	{
+        printf(" * Patching addresses in code\n");
+        const static UINT32 MAX_INSTRUCTIONS = 35000;
+        _DInst decomposed[MAX_INSTRUCTIONS];
+        _DecodedInst disassembled[MAX_INSTRUCTIONS];
+        _DecodeResult res, res2;
+        _CodeInfo ci = {0};
+        ci.codeOffset = HeaderNT->OptionalHeader.BaseOfCode;
+        ci.codeLen = HeaderNT->OptionalHeader.SizeOfCode;
+        ci.code = (const unsigned char*)&pe32[ci.codeOffset];
+        ci.dt = Decode64Bits;
+
+        UINT32 decomposedInstructionsCount = 0;
+        UINT32 decodedInstructionsCount = 0;
+        UINT32 patchCount = 0;
+
+        /* Actual disassembly */
+        res = distorm_decode(ci.codeOffset,
+                             ci.code,
+                             ci.codeLen,
+                             Decode64Bits,
+                             disassembled,
+                             MAX_INSTRUCTIONS,
+                             &decomposedInstructionsCount);
+
+        /* Decompose for human-readable output */
+        res2 = distorm_decompose(&ci,
+                                 decomposed,
+                                 MAX_INSTRUCTIONS,
+                                 &decodedInstructionsCount);
+
+        if(decodedInstructionsCount != decomposedInstructionsCount) {
+            printf("ERROR: decompose / decode mismatch! Aborting!\n");
+            return ERR_ERROR;
+        }
+
+		UINT8 dirtyRegs = 0xff;
+        for (UINT32 i = 0; i < decodedInstructionsCount; i++) {
+			UINT32 instructionAddr = decomposed[i].addr - ci.codeOffset;
+			UINT8 instructionSize = decomposed[i].size;
+			UINT32 nextInstructionAddr = instructionAddr + instructionSize;
+			UINT64 realInstructionAddr = instructionAddr + imageBase + baseOfCode;
+
+			// Calculate the size of the immediate parameter if any -
+			// needed to find the address of the displacement
+			UINT8 immSize = 0;
+			for (int j = 3; j >= 0; j--)
+				if (decomposed[i].ops[j].type == O_IMM ||
+					decomposed[i].ops[j].type == O_IMM1 ||
+					decomposed[i].ops[j].type == O_IMM2)
+					immSize = decomposed[i].ops[j].size >> 3;
+
+			// Fix up any tables that use ImageBase as a reference
+			// e.g. table = RIP - (offset to imageBase) + tableAddress;
+			if (decomposed[i].flags & FLAG_RIP_RELATIVE &&
+				((nextInstructionAddr + baseOfCode) + decomposed[i].disp == 0x0))
+			{
+				dirtyRegs = decomposed[i].ops[0].index;
+				continue;
+			} 
+
+			if (dirtyRegs != 0xff && 
+				decomposed[i].ops[1].type == O_MEM && 
+				decomposed[i].ops[1].index == dirtyRegs) {
+				UINT8 dispSize = decomposed[i].dispSize >> 3;
+				UINT32 dispOffset = nextInstructionAddr - immSize - dispSize;
+				printf("instruction: size %08X: offset: %016llx disp: %016llx: dispSize: %02x: imm: %016llx: imageBase: %016llx: %s%s%s\n",
+					decomposed[i].size,
+					realInstructionAddr,
+					decomposed[i].disp,
+					decomposed[i].dispSize,
+					decomposed[i].imm.addr,
+					0x0,
+					(char*)disassembled[i].mnemonic.p,
+					disassembled[i].operands.length != 0 ? " " : "",
+					(char*)disassembled[i].operands.p);
+//				for (int j = 3; j >= 0; j--)
+//				{
+//		       		printf("operand: type: %02X: index: %02x size: %02x\n",
+//						decomposed[i].ops[j].type,
+//						decomposed[i].ops[j].index,
+//						decomposed[i].ops[j].size);
+//				}
+
+				if (dispSize == 8)
+				{
+					UINT64 *patchValue = (UINT64*)&ci.code[dispOffset];
+					printf("[%016llx] --> [%016llx]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				} 
+				else if (dispSize == 4)
+				{
+					UINT32 *patchValue = (UINT32*)&ci.code[dispOffset];
+					printf("[%08x] --> [%08x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				else if (dispSize == 2)
+				{
+					UINT16 *patchValue = (UINT16*)&ci.code[dispOffset];
+					printf("[%04x] --> [%04x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				else if (dispSize == 1)
+				{
+					UINT8 *patchValue = (UINT8*)&ci.code[dispOffset];
+					printf("[%02x] --> [%02x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				patchCount++;
+			} 
+
+			if (decomposed[i].ops[0].type == O_REG && decomposed[i].ops[0].index == dirtyRegs)
+				dirtyRegs = 0xff;
+
+
+			if (decomposed[i].flags & FLAG_RIP_RELATIVE &&
+
+				// Displacement is not 0
+				decomposed[i].dispSize != 0x0 &&
+
+				// Negative reference - not handled for now
+				// if (decomposed[i].disp < 0) - this is supposed to work but doesn't
+				!(decomposed[i].disp & (0x80 << (decomposed[i].dispSize - 8))) &&
+
+				// Displacement lands in or after our injection point
+				decomposed[i].disp >= (sizeOfCode - nextInstructionAddr))
+			{
+				UINT8 dispSize = decomposed[i].dispSize >> 3;
+				UINT32 dispOffset = nextInstructionAddr - immSize - dispSize;
+	
+  	         	printf("instruction: size %08X: offset: %016llx disp: %016llx: dispSize: %02x: immSize %02x: %s%s%s",
+						decomposed[i].size,
+						realInstructionAddr,
+						decomposed[i].disp,
+						decomposed[i].dispSize,
+						immSize,
+						(char*)disassembled[i].mnemonic.p,
+						disassembled[i].operands.length != 0 ? " " : "",
+						(char*)disassembled[i].operands.p);
+	
+				if (dispSize == 8)
+				{
+					UINT64 *patchValue = (UINT64*)&ci.code[dispOffset];
+					printf("[%016llx] --> [%016llx]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				} 
+				else if (dispSize == 4)
+				{
+					UINT32 *patchValue = (UINT32*)&ci.code[dispOffset];
+					printf("[%08x] --> [%08x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				else if (dispSize == 2)
+				{
+					UINT16 *patchValue = (UINT16*)&ci.code[dispOffset];
+					printf("[%04x] --> [%04x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				else if (dispSize == 1)
+				{
+					UINT8 *patchValue = (UINT8*)&ci.code[dispOffset];
+					printf("[%02x] --> [%02x]\n",
+						*patchValue,
+						*patchValue += alignDiffCode);
+				}
+				patchCount++;
+			}
+        }
+	}
+
+	// Fix up fixed address references in .data segment
+	{
+		UINT64 injectionPointStart = imageBase + baseOfCode + sizeOfCode;
+		UINT64 injectionPointEnd = imageBase + baseOfCode + sizeOfCode + alignDiffCode;
+		UINT64 dataSectionsEnd = imageBase + relocStart;
+
+		unsigned char *code = (unsigned char*)&pe32[dataStart];
+
+		printf("%x: [%016llx] --> [%016llx] --> [%016llx]\n",
+				dataStart,
+				injectionPointStart,
+				injectionPointEnd,
+				dataSectionsEnd);
+		for (UINT32 i = 0; i < dataSize; i+=8)
+		{
+			UINT64 realInstructionAddr = imageBase + dataStart + (UINT64) i;
+	    	UINT64 *lp = (UINT64*)&code[i];
+			if (*lp > injectionPointStart && *lp < dataSectionsEnd)
+				printf("%x [%016llx]: [%016llx] --> [%016llx]\n",
+					dataStart + i,
+					realInstructionAddr,
+					*lp,
+					*lp += alignDiffCode);
+		}
+	}
+
+    /* Copy data till DSDT */
+    out.append((const char*)pe32, insertOffset);
+    // Copy new DSDT
+    out.append(blob);
+    // Pad the file
+    out.append(QByteArray((alignDiffCode-diffCode), '\xcc'));
+    // Copy the rest
+    out.append(in.mid(insertOffset));
 
     return ERR_SUCCESS;
 }
