@@ -794,3 +794,33 @@ UINT8 OZMTool::DSDT2Bios(QString inputfile, QString inputDSDTfile, QString outpu
 
     return ERR_SUCCESS;
 }
+
+UINT8 OZMTool::NvramPatch(QString inputfile, QString codeblobfile, QString outputfile)
+{
+    UINT8 ret;
+    QByteArray in, blob, out;
+
+    ret = fileOpen(inputfile, in);
+    if (ret) {
+        printf("ERROR: Opening '%s' failed!\n", qPrintable(inputfile));
+        return ret;
+    }
+
+    ret = fileOpen(codeblobfile, blob);
+    if (ret) {
+        printf("ERROR: Opening '%s' failed!\n", qPrintable(codeblobfile));
+        return ret;
+    }
+
+    ret = patchNvram(in, blob, out);
+    if (ret) {
+        printf("ERROR: Failed to patch AmiBoardInfo with new DSDT!\n");
+        return ret;
+    }
+
+    ret = fileWrite(outputfile, out);
+    if (ret) {
+        printf("ERROR: Saving to '%s' failed!\n", qPrintable(outputfile));
+        return ret;
+    }
+}

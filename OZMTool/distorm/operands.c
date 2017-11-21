@@ -729,7 +729,7 @@ int operands_extract(_CodeInfo* ci, _DInst* di, _InstInfo* ii,
 			op->type = O_IMM;
 			if (ci->dt == Decode64Bits) {
 				/* Imm32 is sign extended to 64 bits! */
-				op->size = 64;
+				op->size = 32;
 				di->flags |= FLAG_IMM_SIGNED;
 				if (!read_stream_safe_sint(ci, &di->imm.sqword, sizeof(int32_t))) return FALSE;
 			} else {
