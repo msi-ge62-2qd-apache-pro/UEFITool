@@ -11,7 +11,11 @@ script:
   - qmake CONFIG+=release PREFIX=/usr
   - make -j$(nproc)
   - make INSTALL_ROOT=appdir -j$(nproc) install ; ls -lh # find appdir/
+  - mkdir -p appdir/usr/bin
+  - find . -executable -exec cp {} appdir/usr/bin/ \;
   - wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
+  - mkdir -p appdir/usr/share/applications ; cp uefitool.desktop appdir/usr/share/applications/
+  - mkdir -p appdir/usr/share/icons/hicolor/256x256/apps/ ; cp uefitool.png appdir/usr/share/icons/hicolor/256x256/apps/
   - chmod a+x linuxdeployqt-continuous-x86_64.AppImage
   - unset QTDIR; unset QT_PLUGIN_PATH ; unset LD_LIBRARY_PATH
   - export VERSION=$(git rev-parse --short HEAD) # linuxdeployqt uses this for naming the file
