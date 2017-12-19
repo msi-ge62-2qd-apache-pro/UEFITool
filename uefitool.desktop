@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=UEFITool
-Exec=uefitool
+Exec=UEFITool
 Icon=uefitool
 Categories=Development;
