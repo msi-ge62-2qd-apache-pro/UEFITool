@@ -12,7 +12,7 @@ script:
   - make -j$(nproc)
   - make INSTALL_ROOT=appdir -j$(nproc) install ; ls -lh # find appdir/
   - mkdir -p appdir/usr/bin
-  - find . -executable -exec cp {} appdir/usr/bin/ \;
+  - cp ./UEFITool ./appdir/usr/bin/
   - wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
   - mkdir -p appdir/usr/share/applications ; cp uefitool.desktop appdir/usr/share/applications/
   - mkdir -p appdir/usr/share/icons/hicolor/256x256/apps/ ; cp uefitool.png appdir/usr/share/icons/hicolor/256x256/apps/
