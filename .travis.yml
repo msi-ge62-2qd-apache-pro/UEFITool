@@ -5,7 +5,7 @@ sudo: require
 dist: trusty
 
 install:
-  - sudo apt-get -y install qqt5-qmake qtbase5-dev qtdeclarative5-dev libqt5webkit5-dev libsqlite3-dev
+  - sudo apt-get -y install qt5-qmake qtbase5-dev qtdeclarative5-dev libqt5webkit5-dev libsqlite3-dev
 
 script:
   - qmake CONFIG+=release PREFIX=/usr -qt=qt5 uefitool.pro
